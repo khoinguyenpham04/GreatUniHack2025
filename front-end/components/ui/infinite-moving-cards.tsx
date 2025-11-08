@@ -26,44 +26,23 @@ export const InfiniteMovingCards = ({
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLUListElement>(null);
-  const [start, setStart] = useState(false);
 
-  function addAnimation() {
-    if (containerRef.current && scrollerRef.current) {
-      // Clear existing cloned items first
-      const scrollerContent = Array.from(scrollerRef.current.children);
-      const originalItemsCount = items.length;
-      
-      // Remove any previously cloned items
-      while (scrollerRef.current.children.length > originalItemsCount) {
-        scrollerRef.current.removeChild(scrollerRef.current.lastChild!);
-      }
-
-      // Clone items for infinite scroll
-      const itemsToDuplicate = Array.from(scrollerRef.current.children);
-      itemsToDuplicate.forEach((item) => {
-        const duplicatedItem = item.cloneNode(true);
-        if (scrollerRef.current) {
-          scrollerRef.current.appendChild(duplicatedItem);
-        }
-      });
-
-      getDirection();
-      getSpeed();
-      setStart(true);
-    }
-  }
+  // Double the items array for infinite scroll (React handles event binding)
+  const duplicatedItems = [...items, ...items];
 
   useEffect(() => {
-    addAnimation();
+    getDirection();
+    getSpeed();
   }, []);
   
-  // Re-initialize when items change or disabled state changes
+  // Update animation when direction or speed changes
   useEffect(() => {
-    if (scrollerRef.current && !disabled) {
-      addAnimation();
-    }
-  }, [disabled]);
+    getDirection();
+  }, [direction]);
+
+  useEffect(() => {
+    getSpeed();
+  }, [speed]);
   const getDirection = () => {
     if (containerRef.current) {
       if (direction === "left") {
@@ -79,6 +58,7 @@ export const InfiniteMovingCards = ({
       }
     }
   };
+  
   const getSpeed = () => {
     if (containerRef.current) {
       if (speed === "fast") {
@@ -91,16 +71,6 @@ export const InfiniteMovingCards = ({
     }
   };
 
-  // Update speed CSS variable when prop changes
-  useEffect(() => {
-    getSpeed();
-  }, [speed]);
-
-  // Update direction CSS variable when prop changes
-  useEffect(() => {
-    getDirection();
-  }, [direction]);
-
   return (
     <div
       ref={containerRef}
@@ -112,14 +82,13 @@ export const InfiniteMovingCards = ({
       <ul
         ref={scrollerRef}
         className={cn(
-          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4",
-          start && "animate-scroll",
+          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4 animate-scroll",
         )}
       >
-        {items.map((item, idx) => (
+        {duplicatedItems.map((item, idx) => (
           <li
             className="relative w-[350px] max-w-full shrink-0 rounded-2xl md:w-[450px] group"
-            key={idx}
+            key={`${item.src}-${idx}`}
           >
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
               <Image
