@@ -4,10 +4,43 @@ import { useTasks } from "@/lib/task-context";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
+import { Trash2, Loader2 } from "lucide-react";
+import { toast } from "sonner";
 
 export function TaskList() {
-  const { tasks, toggleTask, removeTask } = useTasks();
+  const { tasks, toggleTask, removeTask, isLoading } = useTasks();
+
+  const handleToggle = async (id: string) => {
+    try {
+      await toggleTask(id);
+    } catch (error) {
+      toast.error("Failed to update task");
+    }
+  };
+
+  const handleDelete = async (id: string, description: string) => {
+    try {
+      await removeTask(id);
+      toast.success(`Deleted: ${description}`);
+    } catch (error) {
+      toast.error("Failed to delete task");
+    }
+  };
+
+  if (isLoading && tasks.length === 0) {
+    return (
+      <Card className="w-full">
+        <CardHeader>
+          <CardTitle>Tasks</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center py-4">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (tasks.length === 0) {
     return (
@@ -38,7 +71,7 @@ export function TaskList() {
             <Checkbox
               id={task.id}
               checked={task.completed}
-              onCheckedChange={() => toggleTask(task.id)}
+              onCheckedChange={() => handleToggle(task.id)}
             />
             <label
               htmlFor={task.id}
@@ -53,8 +86,9 @@ export function TaskList() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => removeTask(task.id)}
-              className="h-8 w-8"
+              onClick={() => handleDelete(task.id, task.description)}
+              className="h-8 w-8 hover:bg-red-50 hover:text-red-600"
+              title="Delete task"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
