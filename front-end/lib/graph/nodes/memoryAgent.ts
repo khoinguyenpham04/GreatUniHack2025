@@ -39,8 +39,12 @@ Your task: Respond naturally, based on the profile and prior memoryLog.
   ]);
 
   // Append response to memory log
+  const replyContent = typeof reply.content === 'string'
+    ? reply.content
+    : String(reply.content);
+    
   return {
     ...state,
-    memoryLog: [...state.memoryLog, reply.content],
+    memoryLog: [...state.memoryLog, replyContent],
   };
 }

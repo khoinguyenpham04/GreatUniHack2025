@@ -10,7 +10,9 @@ export async function healthAgent(state: PatientState): Promise<PatientState> {
   Respond "None" if there are none.
   `;
   const result = await model.invoke(prompt);
-  const note = result.content.trim();
+  const note = typeof result.content === 'string' 
+    ? result.content.trim() 
+    : String(result.content).trim();
 
   if (note.toLowerCase() === "none") return state;
 

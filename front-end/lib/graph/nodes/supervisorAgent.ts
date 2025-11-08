@@ -9,5 +9,8 @@ export async function supervisorAgent(state: PatientState): Promise<PatientState
   Input: "${state.input}"
   `;
   const result = await model.invoke(prompt);
-  return { ...state, routeDecision: result.content.trim().toLowerCase() };
+  const decision = typeof result.content === 'string'
+    ? result.content.trim().toLowerCase()
+    : String(result.content).trim().toLowerCase();
+  return { ...state, routeDecision: decision };
 }

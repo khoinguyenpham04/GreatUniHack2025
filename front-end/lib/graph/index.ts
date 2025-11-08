@@ -5,28 +5,24 @@ import { supervisorAgent } from "./nodes/supervisorAgent";
 import { taskAgent } from "./nodes/taskAgent";
 import { healthAgent } from "./nodes/healthAgent";
 
-const graph = new StateGraph(PatientStateSchema);
-
-graph.addNode("memoryAgent", memoryAgent);
-graph.addNode("supervisorAgent", supervisorAgent);
-graph.addNode("taskAgent", taskAgent);
-graph.addNode("healthAgent", healthAgent);
-
-graph.addEdge(START, "memoryAgent");
-graph.addEdge("memoryAgent", "supervisorAgent");
-
-graph.addConditionalEdges("supervisorAgent", (state) => {
-  switch (state.routeDecision) {
-    case "task":
-      return "taskAgent";
-    case "health":
-      return "healthAgent";
-    default:
-      return END;
-  }
-});
-
-graph.addEdge("taskAgent", END);
-graph.addEdge("healthAgent", END);
+const graph = new StateGraph(PatientStateSchema)
+  .addNode("memoryAgent", memoryAgent)
+  .addNode("supervisorAgent", supervisorAgent)
+  .addNode("taskAgent", taskAgent)
+  .addNode("healthAgent", healthAgent)
+  .addEdge(START, "memoryAgent")
+  .addEdge("memoryAgent", "supervisorAgent")
+  .addConditionalEdges("supervisorAgent", (state) => {
+    switch (state.routeDecision) {
+      case "task":
+        return "taskAgent";
+      case "health":
+        return "healthAgent";
+      default:
+        return END;
+    }
+  })
+  .addEdge("taskAgent", END)
+  .addEdge("healthAgent", END);
 
 export const patientGraph = graph.compile();
