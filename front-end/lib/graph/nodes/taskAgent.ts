@@ -25,9 +25,6 @@ export async function taskAgent(state: PatientState): Promise<PatientState> {
 
     // Update medication log
     MedicationDB.updateAllTaken(patientId);
-  } else {
-    // Create a general task based on the input
-    TaskDB.create(patientId, state.input);
   }
 
   // Get all active tasks from database
