@@ -66,6 +66,51 @@ CREATE TABLE IF NOT EXISTS interactions (
   FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
 );
 
+-- 🎯 NEW: Loved ones table (for comfort agent)
+CREATE TABLE IF NOT EXISTS loved_ones (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id INTEGER NOT NULL,
+  name TEXT NOT NULL,
+  relationship TEXT NOT NULL, -- 'daughter', 'son', 'spouse', 'friend', etc.
+  phone_number TEXT,
+  profile_picture_path TEXT,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
+-- 🎯 NEW: Photos of loved ones with descriptions
+CREATE TABLE IF NOT EXISTS loved_one_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  loved_one_id INTEGER NOT NULL,
+  photo_path TEXT NOT NULL,
+  description TEXT, -- "At the beach in 2019", "Your wedding day", etc.
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (loved_one_id) REFERENCES loved_ones(id) ON DELETE CASCADE
+);
+
+-- 🎯 NEW: Audio messages from loved ones
+CREATE TABLE IF NOT EXISTS loved_one_audio (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  loved_one_id INTEGER NOT NULL,
+  audio_path TEXT NOT NULL,
+  description TEXT, -- "Birthday message", "Goodnight recording", etc.
+  duration INTEGER, -- seconds
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (loved_one_id) REFERENCES loved_ones(id) ON DELETE CASCADE
+);
+
+-- 🎯 NEW: Comfort interactions log
+CREATE TABLE IF NOT EXISTS comfort_interactions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id INTEGER NOT NULL,
+  loved_one_id INTEGER,
+  interaction_type TEXT NOT NULL, -- 'photo_view', 'audio_play', 'call_suggestion', 'memory_prompt'
+  details TEXT, -- JSON or text with interaction details
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE,
+  FOREIGN KEY (loved_one_id) REFERENCES loved_ones(id) ON DELETE SET NULL
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patient_id);
 CREATE INDEX IF NOT EXISTS idx_memory_logs_patient ON memory_logs(patient_id);
@@ -73,6 +118,10 @@ CREATE INDEX IF NOT EXISTS idx_tasks_patient ON tasks(patient_id);
 CREATE INDEX IF NOT EXISTS idx_health_notes_patient ON health_notes(patient_id);
 CREATE INDEX IF NOT EXISTS idx_interactions_patient ON interactions(patient_id);
 CREATE INDEX IF NOT EXISTS idx_memory_logs_created ON memory_logs(patient_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_loved_ones_patient ON loved_ones(patient_id);
+CREATE INDEX IF NOT EXISTS idx_loved_one_photos ON loved_one_photos(loved_one_id);
+CREATE INDEX IF NOT EXISTS idx_loved_one_audio ON loved_one_audio(loved_one_id);
+CREATE INDEX IF NOT EXISTS idx_comfort_interactions_patient ON comfort_interactions(patient_id);
 `;
 
 export const seedDataSQL = `
@@ -85,5 +134,27 @@ INSERT OR IGNORE INTO medications (id, patient_id, medication_name, schedule_tim
 VALUES 
   (1, 1, 'Donepezil', '8am'),
   (2, 1, 'Memantine', '8pm');
+
+-- 🎯 Insert sample loved ones for Mary
+INSERT OR IGNORE INTO loved_ones (id, patient_id, name, relationship, phone_number, profile_picture_path)
+VALUES 
+  (1, 1, 'Sarah Thompson', 'daughter', '+1-555-0123', '/photos/loved-ones/sarah-profile.jpg'),
+  (2, 1, 'Michael Thompson', 'son', '+1-555-0124', '/photos/loved-ones/michael-profile.jpg'),
+  (3, 1, 'Emma Johnson', 'granddaughter', '+1-555-0125', '/photos/loved-ones/emma-profile.jpg');
+
+-- 🎯 Insert sample photos
+INSERT OR IGNORE INTO loved_one_photos (id, loved_one_id, photo_path, description)
+VALUES 
+  (1, 1, '/photos/loved-ones/sarah-1.jpg', 'Sarah at your 75th birthday party'),
+  (2, 1, '/photos/loved-ones/sarah-2.jpg', 'Sarah graduation from medical school'),
+  (3, 2, '/photos/loved-ones/michael-1.jpg', 'Michael and his family at Christmas'),
+  (4, 3, '/photos/loved-ones/emma-1.jpg', 'Emma at her first piano recital');
+
+-- 🎯 Insert sample audio messages
+INSERT OR IGNORE INTO loved_one_audio (id, loved_one_id, audio_path, description, duration)
+VALUES 
+  (1, 1, '/audio/loved-ones/sarah-goodnight.mp3', 'Sarah saying goodnight', 15),
+  (2, 2, '/audio/loved-ones/michael-birthday.mp3', 'Michael birthday message', 30),
+  (3, 3, '/audio/loved-ones/emma-song.mp3', 'Emma singing your favorite song', 45);
 `;
 

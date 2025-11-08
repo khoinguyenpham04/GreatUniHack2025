@@ -396,3 +396,171 @@ export function getPatientState(patientId: number = 1) {
   };
 }
 
+/**
+ * 🎯 Comfort Agent - Loved Ones database operations
+ */
+export const ComfortDB = {
+  /**
+   * Get all loved ones for a patient
+   */
+  getLovedOnes(patientId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT * FROM loved_ones WHERE patient_id = ? ORDER BY name ASC"
+      )
+      .all(patientId) as Array<{
+      id: number;
+      patient_id: number;
+      name: string;
+      relationship: string;
+      phone_number: string | null;
+      profile_picture_path: string | null;
+      created_at: string;
+    }>;
+  },
+
+  /**
+   * Get a specific loved one by ID
+   */
+  getLovedOne(lovedOneId: number) {
+    const db = getDatabase();
+    return db
+      .prepare("SELECT * FROM loved_ones WHERE id = ?")
+      .get(lovedOneId) as {
+      id: number;
+      patient_id: number;
+      name: string;
+      relationship: string;
+      phone_number: string | null;
+      profile_picture_path: string | null;
+      created_at: string;
+    } | undefined;
+  },
+
+  /**
+   * Find loved one by name or relationship
+   */
+  findLovedOne(patientId: number, searchTerm: string) {
+    const db = getDatabase();
+    const term = `%${searchTerm.toLowerCase()}%`;
+    return db
+      .prepare(
+        "SELECT * FROM loved_ones WHERE patient_id = ? AND (LOWER(name) LIKE ? OR LOWER(relationship) LIKE ?) LIMIT 1"
+      )
+      .get(patientId, term, term) as {
+      id: number;
+      patient_id: number;
+      name: string;
+      relationship: string;
+      phone_number: string | null;
+      profile_picture_path: string | null;
+      created_at: string;
+    } | undefined;
+  },
+
+  /**
+   * Get photos for a loved one
+   */
+  getPhotos(lovedOneId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT * FROM loved_one_photos WHERE loved_one_id = ? ORDER BY created_at DESC"
+      )
+      .all(lovedOneId) as Array<{
+      id: number;
+      loved_one_id: number;
+      photo_path: string;
+      description: string | null;
+      created_at: string;
+    }>;
+  },
+
+  /**
+   * Get audio messages for a loved one
+   */
+  getAudio(lovedOneId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT * FROM loved_one_audio WHERE loved_one_id = ? ORDER BY created_at DESC"
+      )
+      .all(lovedOneId) as Array<{
+      id: number;
+      loved_one_id: number;
+      audio_path: string;
+      description: string | null;
+      duration: number | null;
+      created_at: string;
+    }>;
+  },
+
+  /**
+   * Log a comfort interaction
+   */
+  logInteraction(
+    patientId: number,
+    lovedOneId: number | null,
+    interactionType: string,
+    details?: string
+  ) {
+    const db = getDatabase();
+    db.prepare(
+      "INSERT INTO comfort_interactions (patient_id, loved_one_id, interaction_type, details) VALUES (?, ?, ?, ?)"
+    ).run(patientId, lovedOneId, interactionType, details || null);
+  },
+
+  /**
+   * Get recent comfort interactions
+   */
+  getRecentInteractions(patientId: number, limit: number = 10) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        `SELECT ci.*, lo.name as loved_one_name 
+         FROM comfort_interactions ci
+         LEFT JOIN loved_ones lo ON ci.loved_one_id = lo.id
+         WHERE ci.patient_id = ?
+         ORDER BY ci.created_at DESC
+         LIMIT ?`
+      )
+      .all(patientId, limit) as Array<{
+      id: number;
+      patient_id: number;
+      loved_one_id: number | null;
+      interaction_type: string;
+      details: string | null;
+      created_at: string;
+      loved_one_name: string | null;
+    }>;
+  },
+
+  /**
+   * Get most frequently mentioned loved ones
+   */
+  getMostMentioned(patientId: number, limit: number = 3) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        `SELECT lo.*, COUNT(ci.id) as mention_count
+         FROM loved_ones lo
+         LEFT JOIN comfort_interactions ci ON lo.id = ci.loved_one_id
+         WHERE lo.patient_id = ?
+         GROUP BY lo.id
+         ORDER BY mention_count DESC
+         LIMIT ?`
+      )
+      .all(patientId, limit) as Array<{
+      id: number;
+      patient_id: number;
+      name: string;
+      relationship: string;
+      phone_number: string | null;
+      profile_picture_path: string | null;
+      created_at: string;
+      mention_count: number;
+    }>;
+  },
+};
+

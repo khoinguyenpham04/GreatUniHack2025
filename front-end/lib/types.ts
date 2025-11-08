@@ -14,6 +14,9 @@ export const PatientStateSchema = z.object({
   healthNotes: z.array(z.string()),
 
   routeDecision: z.string().optional(),
+  
+  // 🎯 Comfort agent data (optional)
+  comfortData: z.any().optional(),
 });
 
 export type PatientState = z.infer<typeof PatientStateSchema>;
