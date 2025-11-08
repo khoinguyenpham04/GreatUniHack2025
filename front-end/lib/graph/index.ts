@@ -1,28 +1,25 @@
-import { StateGraph, START, END } from "@langchain/langgraph";
-import { PatientStateSchema } from "@/lib/types";
-import { memoryAgent } from "./nodes/memoryAgent";
-import { supervisorAgent } from "./nodes/supervisorAgent";
-import { taskAgent } from "./nodes/taskAgent";
-import { healthAgent } from "./nodes/healthAgent";
+/**
+ * Multi-Agent Graph System for Dementia Care
+ * 
+ * Two separate workflows optimized for different users:
+ * 
+ * 1. PATIENT GRAPH (/dashboard)
+ *    - Simplified, patient-friendly workflow
+ *    - Memory Agent: Warm responses with photo memory context
+ *    - Task Agent: Simple daily activity management
+ *    - Focus: Memory recall, daily routines, emotional support
+ * 
+ * 2. CARETAKER GRAPH (/dashboard/caretaker)
+ *    - Full multi-agent system for healthcare professionals
+ *    - Memory Agent: Compassionate initial response
+ *    - Supervisor Agent: Intelligent routing
+ *    - Task Agent: Medication tracking, caretaker tasks
+ *    - Health Agent: Symptom tracking with severity classification
+ *    - Focus: Medical oversight, comprehensive care management
+ */
 
-const graph = new StateGraph(PatientStateSchema)
-  .addNode("memoryAgent", memoryAgent)
-  .addNode("supervisorAgent", supervisorAgent)
-  .addNode("taskAgent", taskAgent)
-  .addNode("healthAgent", healthAgent)
-  .addEdge(START, "memoryAgent")
-  .addEdge("memoryAgent", "supervisorAgent")
-  .addConditionalEdges("supervisorAgent", (state) => {
-    switch (state.routeDecision) {
-      case "task":
-        return "taskAgent";
-      case "health":
-        return "healthAgent";
-      default:
-        return END;
-    }
-  })
-  .addEdge("taskAgent", END)
-  .addEdge("healthAgent", END);
+export { patientGraph } from "./patient-graph";
+export { caretakerGraph } from "./caretaker-graph";
 
-export const patientGraph = graph.compile();
+// Default export for backward compatibility
+export { caretakerGraph as default } from "./caretaker-graph";

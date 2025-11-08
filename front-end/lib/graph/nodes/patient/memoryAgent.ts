@@ -1,6 +1,6 @@
 import { PatientState } from "@/lib/types";
 import { ChatOpenAI } from "@langchain/openai";
-import { PatientDB, MemoryDB } from "@/lib/db";
+import { PatientDB, MemoryDB, MemoryPhotoDB } from "@/lib/db";
 
 const model = new ChatOpenAI({
   model: "gpt-4o-mini",
@@ -24,33 +24,41 @@ export async function memoryAgent(state: PatientState): Promise<PatientState> {
     .map((m) => `${m.role}: ${m.content}`)
     .join("\n");
 
+  // Get memory photos for context
+  const memoryPhotos = MemoryPhotoDB.getRandom(patientId, 3);
+  const photoContext = memoryPhotos.length > 0
+    ? memoryPhotos.map((p) => `Photo: ${p.photo_path} - ${p.memory_description}`).join("\n")
+    : "No photo memories available";
+
   // Construct a structured system prompt with database data
   const systemPrompt = `
-You are a compassionate AI assistant for dementia patients.
-You know this patient's background and always respond simply, clearly, and warmly.
+You are a compassionate AI companion helping ${profile.name}, a dementia patient.
+Your role is to help them remember their life, family, and happy moments.
 
-PATIENT PROFILE (from database):
+PATIENT PROFILE:
 - Name: ${profile.name}
 - Age: ${profile.age}
 - Diagnosis: ${profile.diagnosis}
-- Medications: ${profile.medications.join(", ")}
 
-RECENT CONVERSATION HISTORY:
+MEMORY PHOTOS (use these to help recall):
+${photoContext}
+
+RECENT CONVERSATION:
 ${memoryContext || "No previous conversation"}
 
-Behavior Guidelines:
-- Always ground your answers in the patient's profile.
-- If the patient seems confused, reassure them gently.
-- Do not hallucinate new medical facts.
-- Use short, calm sentences.
-- Reference past conversations when relevant.
+YOUR BEHAVIOR:
+- Use simple, warm, and reassuring language
+- When they ask about people or events, reference the photo memories above
+- Help them feel safe and connected to their memories
+- If they seem confused about a memory, gently help them recall using the photo descriptions
+- Keep responses short (2-3 sentences maximum)
+- Never mention their diagnosis or condition
+- Focus on positive memories and familiar people
 `;
 
-  const userPrompt = `
-The patient said: "${input}"
+  const userPrompt = `${profile.name} says: "${input}"
 
-Your task: Respond naturally, based on the profile and prior conversation history.
-`;
+Respond warmly and naturally, helping them recall memories if needed.`;
 
   const reply = await model.invoke([
     { role: "system", content: systemPrompt },

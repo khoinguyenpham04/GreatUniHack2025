@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { DailyActivityDB, HealthTipDB } from "@/lib/db";
+import { DailyActivityDB, HealthTipDB, MemoryPhotoDB } from "@/lib/db";
 
 export async function GET() {
   try {
@@ -7,12 +7,14 @@ export async function GET() {
 
     const dailyActivities = DailyActivityDB.getActive(patientId);
     const healthTips = HealthTipDB.getActive(patientId);
+    const memoryPhotos = MemoryPhotoDB.getAll(patientId);
 
     return NextResponse.json({
       success: true,
       data: {
         dailyActivities,
         healthTips,
+        memoryPhotos,
       },
     });
   } catch (error) {

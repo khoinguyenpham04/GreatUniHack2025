@@ -455,6 +455,55 @@ export const HealthTipDB = {
 };
 
 /**
+ * Memory photos database operations
+ */
+export const MemoryPhotoDB = {
+  /**
+   * Get all memory photos
+   */
+  getAll(patientId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT id, photo_path, memory_description, created_at FROM memory_photos WHERE patient_id = ? ORDER BY created_at DESC"
+      )
+      .all(patientId) as Array<{
+      id: number;
+      photo_path: string;
+      memory_description: string;
+      created_at: string;
+    }>;
+  },
+
+  /**
+   * Add new memory photo
+   */
+  add(patientId: number, photoPath: string, memoryDescription: string) {
+    const db = getDatabase();
+    const result = db
+      .prepare("INSERT INTO memory_photos (patient_id, photo_path, memory_description) VALUES (?, ?, ?)")
+      .run(patientId, photoPath, memoryDescription);
+    return result.lastInsertRowid;
+  },
+
+  /**
+   * Get random memory photos for recall
+   */
+  getRandom(patientId: number, limit: number = 3) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT id, photo_path, memory_description FROM memory_photos WHERE patient_id = ? ORDER BY RANDOM() LIMIT ?"
+      )
+      .all(patientId, limit) as Array<{
+      id: number;
+      photo_path: string;
+      memory_description: string;
+    }>;
+  },
+};
+
+/**
  * Get complete patient state (for LangGraph)
  */
 export function getPatientState(patientId: number = 1) {

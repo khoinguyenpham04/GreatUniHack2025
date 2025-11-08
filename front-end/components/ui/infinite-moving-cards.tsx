@@ -10,6 +10,8 @@ export const InfiniteMovingCards = ({
   speed = "fast",
   pauseOnHover = true,
   className,
+  onImageClick,
+  disabled = false,
 }: {
   items: {
     src: string;
@@ -19,19 +21,27 @@ export const InfiniteMovingCards = ({
   speed?: "fast" | "normal" | "slow";
   pauseOnHover?: boolean;
   className?: string;
+  onImageClick?: (item: { src: string; alt: string }) => void;
+  disabled?: boolean;
 }) => {
   const containerRef = React.useRef<HTMLDivElement>(null);
   const scrollerRef = React.useRef<HTMLUListElement>(null);
-
-  useEffect(() => {
-    addAnimation();
-  }, []);
   const [start, setStart] = useState(false);
+
   function addAnimation() {
     if (containerRef.current && scrollerRef.current) {
+      // Clear existing cloned items first
       const scrollerContent = Array.from(scrollerRef.current.children);
+      const originalItemsCount = items.length;
+      
+      // Remove any previously cloned items
+      while (scrollerRef.current.children.length > originalItemsCount) {
+        scrollerRef.current.removeChild(scrollerRef.current.lastChild!);
+      }
 
-      scrollerContent.forEach((item) => {
+      // Clone items for infinite scroll
+      const itemsToDuplicate = Array.from(scrollerRef.current.children);
+      itemsToDuplicate.forEach((item) => {
         const duplicatedItem = item.cloneNode(true);
         if (scrollerRef.current) {
           scrollerRef.current.appendChild(duplicatedItem);
@@ -43,6 +53,17 @@ export const InfiniteMovingCards = ({
       setStart(true);
     }
   }
+
+  useEffect(() => {
+    addAnimation();
+  }, []);
+  
+  // Re-initialize when items change or disabled state changes
+  useEffect(() => {
+    if (scrollerRef.current && !disabled) {
+      addAnimation();
+    }
+  }, [disabled]);
   const getDirection = () => {
     if (containerRef.current) {
       if (direction === "left") {
@@ -97,7 +118,7 @@ export const InfiniteMovingCards = ({
       >
         {items.map((item, idx) => (
           <li
-            className="relative w-[350px] max-w-full shrink-0 rounded-2xl md:w-[450px]"
+            className="relative w-[350px] max-w-full shrink-0 rounded-2xl md:w-[450px] group"
             key={idx}
           >
             <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
@@ -105,8 +126,19 @@ export const InfiniteMovingCards = ({
                 src={item.src}
                 alt={item.alt}
                 fill
-                className="object-cover"
+                className="object-cover transition-all group-hover:brightness-75"
               />
+              
+              {/* Memorise Button - Shows on Hover */}
+              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                <button
+                  onClick={() => !disabled && onImageClick?.(item)}
+                  disabled={disabled}
+                  className="px-6 py-3 bg-white text-gray-900 rounded-full font-medium shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Memorise
+                </button>
+              </div>
             </div>
           </li>
         ))}

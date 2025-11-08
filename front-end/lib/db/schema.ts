@@ -88,6 +88,16 @@ CREATE TABLE IF NOT EXISTS health_tips (
   FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
 );
 
+-- Memory photos table (photos with descriptions for memory recall)
+CREATE TABLE IF NOT EXISTS memory_photos (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id INTEGER NOT NULL,
+  photo_path TEXT NOT NULL,
+  memory_description TEXT NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patient_id);
 CREATE INDEX IF NOT EXISTS idx_memory_logs_patient ON memory_logs(patient_id);
@@ -97,6 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_interactions_patient ON interactions(patient_id);
 CREATE INDEX IF NOT EXISTS idx_memory_logs_created ON memory_logs(patient_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_daily_activities_patient ON daily_activities(patient_id);
 CREATE INDEX IF NOT EXISTS idx_health_tips_patient ON health_tips(patient_id);
+CREATE INDEX IF NOT EXISTS idx_memory_photos_patient ON memory_photos(patient_id);
 `;
 
 export const seedDataSQL = `
@@ -124,5 +135,13 @@ VALUES
   (1, 1, 'Drink a glass of water every 2 hours', ''),
   (2, 1, 'Take a 15-minute rest after lunch', ''),
   (3, 1, 'Light stretching helps with joint stiffness', '');
+
+-- Insert memory photos for patient
+INSERT OR IGNORE INTO memory_photos (id, patient_id, photo_path, memory_description)
+VALUES 
+  (1, 1, '/mary-neighbor-with-their-grandchild.png', 'Met my neighbor''s grandchild today. Such a sweet little one.'),
+  (2, 1, '/linda-and-her-bestfriend.jpg', 'Linda brought her best friend over after school. They were inseparable.'),
+  (3, 1, '/mary-and-her-daughter-Stacy-and-Linda-her-grandchild.jpg', 'Sunday brunch with Stacy and Linda. My two favorite girls.'),
+  (4, 1, '/mary-neighbor-with-their-grandchild.png', 'The kids played in the garden all afternoon. Their laughter filled the house.');
 `;
 

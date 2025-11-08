@@ -12,7 +12,7 @@ import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import patientData from "@/lib/patient.json";
 import { Send, Mic } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 
 function PatientDashboardContent() {
@@ -21,9 +21,14 @@ function PatientDashboardContent() {
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
   const [dailyActivities, setDailyActivities] = useState<Array<{ id: number; activity: string; icon: string }>>([]);
   const [healthTips, setHealthTips] = useState<Array<{ id: number; tip: string; icon: string }>>([]);
+  const [memoryPhotos, setMemoryPhotos] = useState<Array<{ id: number; photo_path: string; memory_description: string }>>([]);
   const [carouselSpeed, setCarouselSpeed] = useState<"fast" | "normal" | "slow">("normal");
+  const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; alt: string } | null>(null);
+  const [photoMemoryContext, setPhotoMemoryContext] = useState<string>("");
+  const [isLoadingMemory, setIsLoadingMemory] = useState(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Fetch daily activities and health tips
+  // Fetch daily activities, health tips, and memory photos
   useEffect(() => {
     async function fetchPatientData() {
       try {
@@ -32,6 +37,7 @@ function PatientDashboardContent() {
         if (result.success) {
           setDailyActivities(result.data.dailyActivities);
           setHealthTips(result.data.healthTips);
+          setMemoryPhotos(result.data.memoryPhotos || []);
         }
       } catch (error) {
         console.error('Error fetching patient data:', error);
@@ -55,6 +61,99 @@ function PatientDashboardContent() {
       window.removeEventListener("resize", handleResize);
     };
   }, []);
+
+  // Cleanup on unmount - abort any pending requests
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
+
+  // Handle photo click - instant fade with loading
+  const handlePhotoClick = async (photo: { src: string; alt: string }) => {
+    console.log('Photo clicked:', photo.src);
+    
+    // Prevent multiple simultaneous requests
+    if (isLoadingMemory) {
+      console.log('Already loading a memory, please wait...');
+      return;
+    }
+
+    // Cancel any previous request
+    if (abortControllerRef.current) {
+      console.log('Aborting previous request');
+      abortControllerRef.current.abort();
+    }
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
+
+    console.log('Setting selected photo and loading state');
+    // Instantly show photo and loading state
+    setSelectedPhoto(photo);
+    setIsLoadingMemory(true);
+    setPhotoMemoryContext("");
+
+    // Call patient graph API to get memory context
+    try {
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: `Tell me about this memory: ${photo.alt}`,
+          workflow: 'patient'
+        }),
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      
+      if (data.success && data.state?.memoryLog && data.state.memoryLog.length > 0) {
+        const latestMemory = data.state.memoryLog[data.state.memoryLog.length - 1];
+        setPhotoMemoryContext(latestMemory);
+      } else {
+        // Fallback to description
+        setPhotoMemoryContext(photo.alt);
+      }
+    } catch (error) {
+      // Don't show error for aborted requests
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request cancelled');
+        return;
+      }
+      console.error('Error loading memory:', error);
+      // Fallback to description on error
+      setPhotoMemoryContext(photo.alt);
+    } finally {
+      // Ensure loading state is always cleared
+      setIsLoadingMemory(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  // Close photo detail view
+  const handleClosePhoto = () => {
+    console.log('Closing photo view');
+    
+    // Abort any ongoing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+    
+    // Reset all photo-related state
+    setSelectedPhoto(null);
+    setPhotoMemoryContext("");
+    setIsLoadingMemory(false);
+    
+    console.log('State reset complete');
+  };
 
   // Make patient data readable to CopilotKit
   useCopilotReadable({
@@ -131,8 +230,57 @@ function PatientDashboardContent() {
                 </h1>
               </div>
 
-              {/* Main Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-3xl mx-auto">
+              {/* Photo Detail View */}
+              {selectedPhoto && (
+                <div className="max-w-3xl mx-auto">
+                  {isLoadingMemory ? (
+                    /* Loading State */
+                    <div className="animate-in fade-in duration-200 flex flex-col items-center justify-center min-h-[400px] space-y-6">
+                      <div className="relative">
+                        <div className="animate-spin h-16 w-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
+                      </div>
+                      <div className="text-center space-y-2">
+                        <p className="text-lg font-medium text-gray-900">Remembering...</p>
+                        <p className="text-sm text-gray-500">Loading your memory</p>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Memory Detail */
+                    <div className="animate-in fade-in duration-500 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                      {/* Photo */}
+                      <div className="relative aspect-video w-full bg-gray-100">
+                        <img
+                          src={selectedPhoto.src}
+                          alt={selectedPhoto.alt}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      
+                      {/* Memory Context */}
+                      <div className="p-8 space-y-6">
+                        <div className="space-y-4">
+                          <p className="text-lg text-gray-600 leading-relaxed text-center">
+                            {photoMemoryContext}
+                          </p>
+                        </div>
+                        
+                        <div className="flex justify-center">
+                          <button
+                            onClick={handleClosePhoto}
+                            className="px-8 py-3 bg-gray-100 text-gray-900 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                          >
+                            Back to Activities
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Main Grid - Hidden when photo is selected */}
+              {!selectedPhoto && (
+                <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-3xl mx-auto">
                 {/* Daily Tasks */}
                 <div className="rounded-lg border border-gray-200 bg-white">
                   <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
@@ -194,76 +342,68 @@ function PatientDashboardContent() {
                   </div>
                 </div>
               </div>
+              )}
 
-              {/* Photo Carousel */}
-              <div className="max-w-3xl mx-auto">
-                <div className="h-[200px] md:h-[220px] rounded-lg flex flex-col antialiased bg-white items-center justify-center relative overflow-hidden mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
-                  <InfiniteMovingCards
-                    items={memoryImages}
-                    direction="right"
-                    speed={carouselSpeed}
-                    pauseOnHover={true}
-                    className="mask-none"
-                  />
+              {/* Photo Carousel - Hidden when photo is selected */}
+              {!selectedPhoto && memoryPhotos.length > 0 && (
+                <div className="animate-in fade-in duration-300 max-w-3xl mx-auto">
+                  <div className="h-[200px] md:h-[220px] rounded-lg flex flex-col antialiased bg-white items-center justify-center relative overflow-hidden mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
+                    <InfiniteMovingCards
+                      items={memoryPhotos.map(photo => ({
+                        src: photo.photo_path,
+                        alt: photo.memory_description
+                      }))}
+                      direction="right"
+                      speed={carouselSpeed}
+                      pauseOnHover={true}
+                      disabled={isLoadingMemory}
+                      className="mask-none"
+                      onImageClick={handlePhotoClick}
+                    />
+                  </div>
                 </div>
+              )}
+            </div>
+          </div>
+
+          {/* Chat Input - Hidden when viewing photo */}
+          {!selectedPhoto && (
+            <div className="border-t border-gray-200 bg-white p-4">
+              <div className="max-w-4xl mx-auto">
+                <form onSubmit={handleSubmit} className="relative">
+                  <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-3xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
+                    <input
+                      type="text"
+                      value={inputMessage}
+                      onChange={(e) => setInputMessage(e.target.value)}
+                      placeholder="Who is this person, she keeps saying we went on a trip last summer."
+                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400"
+                    />
+                    <button
+                      type="button"
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      aria-label="Voice input"
+                    >
+                      <Mic className="w-5 h-5 text-gray-500" />
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={!inputMessage.trim()}
+                      className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      aria-label="Send message"
+                    >
+                      <Send className="w-5 h-5 text-white" />
+                    </button>
+                  </div>
+                </form>
               </div>
             </div>
-          </div>
-
-          <div className="border-t border-gray-200 bg-white p-4">
-            <div className="max-w-4xl mx-auto">
-              <form onSubmit={handleSubmit} className="relative">
-                <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-3xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
-                  <input
-                    type="text"
-                    value={inputMessage}
-                    onChange={(e) => setInputMessage(e.target.value)}
-                    placeholder="How are you doing?"
-                    className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400"
-                  />
-                  <button
-                    type="button"
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                    aria-label="Voice input"
-                  >
-                    <Mic className="w-5 h-5 text-gray-500" />
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!inputMessage.trim()}
-                    className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                    aria-label="Send message"
-                  >
-                    <Send className="w-5 h-5 text-white" />
-                  </button>
-                </div>
-              </form>
-            </div>
-          </div>
+          )}
         </div>
       </SidebarInset>
     </SidebarProvider>
   );
 }
-
-const memoryImages = [
-  {
-    src: "/mary-neighbor-with-their-grandchild.png",
-    alt: "Met my neighbor's grandchild today. Such a sweet little one.",
-  },
-  {
-    src: "/linda-and-her-bestfriend.jpg",
-    alt: "Linda brought her best friend over after school. They were inseparable.",
-  },
-  {
-    src: "/mary-and-her-daughter-Stacy-and-Linda-her-grandchild.jpg",
-    alt: "Sunday brunch with Stacy and Linda. My two favorite girls.",
-  },
-  {
-    src: "/mary-neighbor-with-their-grandchild.png",
-    alt: "The kids played in the garden all afternoon. Their laughter filled the house.",
-  },
-];
 
 export default function PatientDashboardPage() {
   return (
