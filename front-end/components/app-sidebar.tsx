@@ -41,14 +41,14 @@ const data = {
   },
   navMain: [
     {
-      title: "Dashboard",
-      url: "#",
+      title: "Patient",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
+      title: "Caretaker",
+      url: "/dashboard/caretaker",
+      icon: IconUsers,
     },
     {
       title: "Analytics",
@@ -56,14 +56,9 @@ const data = {
       icon: IconChartBar,
     },
     {
-      title: "Projects",
+      title: "Reports",
       url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
+      icon: IconReport,
     },
   ],
   navClouds: [
