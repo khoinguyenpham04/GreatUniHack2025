@@ -12,7 +12,7 @@ const patientId = 1; // Default patient ID
 
 const serviceAdapter = new OpenAIAdapter({
   model: "gpt-4o",
-});
+})
 
 const runtime = new CopilotRuntime({
   actions: [
@@ -134,44 +134,93 @@ const runtime = new CopilotRuntime({
       },
     },
     {
-      name: "handleConversation",
-      description: "REQUIRED for ALL emotional support, family questions, and general conversation. MUST use this action when user mentions: family members (daughter/son/grandchild/relatives), missing someone, feeling lonely/sad, wants photos/voices/calls, asks about loved ones by name (e.g., 'sarah', 'michael'), or ANY emotional/social need. This connects to specialized comfort agent with database of loved ones, photos, audio messages, and phone numbers. DO NOT respond directly - ALWAYS call this action for family/emotional topics.",
+      name: "processMessage",
+      description: `CRITICAL: Use this action for ANY message about:
+- Family, loved ones, missing someone (e.g., "I miss Sarah", "where is my daughter")
+- Emotions: lonely, sad, happy, confused
+- General conversation that doesn't fit other specific actions
+- Questions about people, relationships, or feelings
+This routes through our multi-agent system (comfort/task/health/memory agents).`,
       parameters: [
         {
           name: "userMessage",
           type: "string",
-          description: "The user's message to process",
+          description: "The exact user message to process",
           required: true,
         },
       ],
       handler: async ({ userMessage }: { userMessage: string }) => {
-        // Get current state from database
-        const currentState = getPatientState(patientId);
-        currentState.input = userMessage;
+        console.log(`\n💬 processMessage action called with: "${userMessage}"\n`);
         
-        console.log(`\n🎤 CopilotKit received: "${userMessage}"`);
-        
-        // Run through LangGraph agents - supervisor will route appropriately
-        const result = await patientGraph.invoke(currentState);
-        
-        console.log(`✅ CopilotKit completed - Route: ${result.routeDecision}`);
-        
-        // Extract the response from the latest memory log entry
-        const lastMemory = result.memoryLog[result.memoryLog.length - 1] || "";
-        const responseMatch = lastMemory.match(/Response: (.+)$/);
-        const response = responseMatch ? responseMatch[1] : "I'm here to help. How can I assist you?";
-        
-        return {
-          success: true,
-          route: result.routeDecision,
-          message: response,
-          comfortData: result.comfortData,
-          state: {
-            tasks: result.tasks,
-            memoryLog: result.memoryLog,
-            healthNotes: result.healthNotes,
-          },
-        };
+        try {
+          const dbState = getPatientState(patientId);
+          
+          const initialState: PatientState = {
+            ...dbState,
+            input: userMessage,
+          };
+
+          const result = await patientGraph.invoke(initialState);
+          console.log(`✅ Graph completed - Route: ${result.routeDecision}`);
+
+          // Extract response from memoryLog
+          const latestLog = result.memoryLog?.[result.memoryLog.length - 1] || "";
+          const responseMatch = latestLog.match(/Response: (.+)$/);
+          let responseText = responseMatch ? responseMatch[1] : "I'm here to help. How can I assist you?";
+          
+          // Add agent indicator
+          const agentEmoji = {
+            comfort: '💝',
+            task: '📋',
+            health: '🏥',
+            memory: '💭'
+          }[result.routeDecision || 'memory'] || '💭';
+          
+          responseText = `${agentEmoji} ${responseText}`;
+          
+          // Format comfort data if present
+          if (result.comfortData) {
+            const { lovedOne, photos, audio, callSuggestion } = result.comfortData;
+            
+            if (lovedOne) {
+              responseText += `\n\n👤 **${lovedOne.name}** (your ${lovedOne.relationship})`;
+              if (lovedOne.phone_number) {
+                responseText += `\n📞 ${lovedOne.phone_number}`;
+              }
+            }
+            
+            if (photos && photos.length > 0) {
+              responseText += `\n\n📸 **Photos:**`;
+              photos.forEach((p: any) => {
+                responseText += `\n• ${p.description}`;
+              });
+            }
+            
+            if (audio && audio.length > 0) {
+              responseText += `\n\n🎵 **Audio messages:**`;
+              audio.forEach((a: any) => {
+                responseText += `\n• ${a.description} (${a.duration}s)`;
+              });
+            }
+            
+            if (callSuggestion) {
+              responseText += `\n\n💡 Would you like to call ${lovedOne?.name || 'them'}?`;
+            }
+          }
+
+          return {
+            success: true,
+            route: result.routeDecision,
+            message: responseText,
+            comfortData: result.comfortData,
+          };
+        } catch (error) {
+          console.error("❌ Error in processMessage:", error);
+          return {
+            success: false,
+            message: "I'm having trouble processing that right now. Could you try again?",
+          };
+        }
       },
     },
   ],

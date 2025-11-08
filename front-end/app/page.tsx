@@ -5,10 +5,12 @@ import { CopilotSidebar } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
+import { AgentStatusProvider, useAgentStatus } from "@/hooks/use-agent-status";
 import { TaskList } from "@/components/task-list";
 import { PatientProfileCard } from "@/components/patient-profile-card";
 import { HealthNotesCard } from "@/components/health-notes-card";
 import { MemoryLogCard } from "@/components/memory-log-card";
+import { AgentStatusIndicator } from "@/components/agent-status-indicator";
 import { useCopilotAction } from "@copilotkit/react-core";
 import patientData from "@/lib/patient.json";
 import { Brain, Activity, MessageCircle } from "lucide-react";
@@ -16,6 +18,7 @@ import { Brain, Activity, MessageCircle } from "lucide-react";
 function HomeContent() {
   const { addTask } = useTasks();
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
+  const { currentAgent, isProcessing } = useAgentStatus();
 
   // Action: Create Task
   useCopilotAction({
@@ -52,6 +55,24 @@ function HomeContent() {
       addHealthNote(symptom);
       addMemory(`Reported health concern: ${symptom}`);
       return "I've recorded your health concern. Please consult your doctor if needed.";
+    },
+  });
+
+  // Action: Process general messages through multi-agent system
+  useCopilotAction({
+    name: "processMessage",
+    description: `Use this for messages about family, emotions, or general conversation. Examples: "I miss Sarah", "I feel lonely", "where is my daughter"`,
+    parameters: [
+      {
+        name: "userMessage",
+        type: "string",
+        description: "The user's message",
+        required: true,
+      },
+    ],
+    handler: async ({ userMessage }) => {
+      // This will call the backend action
+      return userMessage;
     },
   });
 
@@ -165,10 +186,20 @@ function HomeContent() {
                   <li>"Tell me about my profile"</li>
                 </ul>
               </div>
+              <div className="bg-white p-4 rounded-lg border border-pink-100">
+                <p className="font-semibold text-pink-900 mb-2">💝 Comfort</p>
+                <ul className="space-y-1 text-gray-700">
+                  <li>"I miss Sarah"</li>
+                  <li>"I want to see photos of my daughter"</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
       </div>
+      
+      {/* Agent Status Indicator */}
+      <AgentStatusIndicator agent={currentAgent} isProcessing={isProcessing} />
     </div>
   );
 }
@@ -177,17 +208,19 @@ export default function HomePage() {
   return (
     <PatientStateProvider>
       <TaskProvider>
-        <CopilotKit runtimeUrl="/api/copilotkit">
-          <CopilotSidebar
-            defaultOpen={true}
-            labels={{
-              title: "🧠 AI Companion",
-              initial: `Hello! I'm your AI companion assistant powered by a multi-agent system.\n\n I can help you with:\n• Creating tasks and reminders\n• Tracking health symptoms\n• Remembering conversations\n• Managing your medication schedule\n\nHow can I help you today?`,
-            }}
-          >
-            <HomeContent />
-          </CopilotSidebar>
-        </CopilotKit>
+        <AgentStatusProvider>
+          <CopilotKit runtimeUrl="/api/copilotkit">
+            <CopilotSidebar
+              defaultOpen={true}
+              labels={{
+                title: "🧠 AI Companion",
+                initial: `Hello! I'm your AI companion assistant powered by a multi-agent system.\n\nI can help you with:\n• 💝 Comfort - Connect with loved ones\n• 📋 Tasks - Reminders and schedules\n• 🏥 Health - Track symptoms\n• 💭 Memory - Remember conversations\n\nHow can I help you today?`,
+              }}
+            >
+              <HomeContent />
+            </CopilotSidebar>
+          </CopilotKit>
+        </AgentStatusProvider>
       </TaskProvider>
     </PatientStateProvider>
   );
