@@ -1,19 +1,46 @@
-import { ChatOpenAI } from "@langchain/openai";
 import { PatientState } from "@/lib/types";
+import { ChatOpenAI } from "@langchain/openai";
 
-const model = new ChatOpenAI({ model: "gpt-4o-mini" });
+const model = new ChatOpenAI({
+  model: "gpt-4o-mini",
+  temperature: 0.3, // stable and factual
+});
 
 export async function memoryAgent(state: PatientState): Promise<PatientState> {
-  const prompt = `
-  You are a friendly dementia companion.
-  Keep conversation simple, warm, and reassuring.
-  Input: "${state.input}"
-  `;
-  const reply = await model.invoke(prompt);
+  const { input, patientProfile } = state;
 
+  // Construct a structured system prompt
+  const systemPrompt = `
+You are a compassionate AI assistant for dementia patients.
+You know this patient's background and always respond simply, clearly, and warmly.
+
+PATIENT PROFILE:
+- Name: ${patientProfile.name}
+- Age: ${patientProfile.age}
+- Diagnosis: ${patientProfile.diagnosis}
+- Medications: ${patientProfile.med_schedule.join(", ")}
+
+Behavior Guidelines:
+- Always ground your answers in the patient’s profile.
+- If the patient seems confused, reassure them gently.
+- Do not hallucinate new medical facts.
+- Use short, calm sentences.
+`;
+
+  const userPrompt = `
+The patient said: "${input}"
+
+Your task: Respond naturally, based on the profile and prior memoryLog.
+`;
+
+  const reply = await model.invoke([
+    { role: "system", content: systemPrompt },
+    { role: "user", content: userPrompt },
+  ]);
+
+  // Append response to memory log
   return {
     ...state,
     memoryLog: [...state.memoryLog, reply.content],
   };
 }
-
