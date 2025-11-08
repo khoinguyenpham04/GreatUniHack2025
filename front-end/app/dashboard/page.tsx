@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { AppSidebar } from "@/components/app-sidebar";
 import { SiteHeader } from "@/components/site-header";
 import {
@@ -11,10 +12,12 @@ import { CopilotSidebar } from "@copilotkit/react-ui";
 import "@copilotkit/react-ui/styles.css";
 import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
+import { AgentStatusProvider, useAgentStatus } from "@/hooks/use-agent-status";
 import { TaskList } from "@/components/task-list";
 import { PatientProfileCard } from "@/components/patient-profile-card";
 import { HealthNotesCard } from "@/components/health-notes-card";
 import { MemoryLogCard } from "@/components/memory-log-card";
+import { AgentStatusIndicator } from "@/components/agent-status-indicator";
 import { useCopilotAction } from "@copilotkit/react-core";
 import patientData from "@/lib/patient.json";
 import { Brain, Activity, MessageCircle } from "lucide-react";
@@ -22,44 +25,35 @@ import { Brain, Activity, MessageCircle } from "lucide-react";
 function DashboardContent() {
   const { addTask } = useTasks();
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
+  const { currentAgent, isProcessing, setAgent, setProcessing, reset } = useAgentStatus();
 
-  // Action: Create Task
-  useCopilotAction({
-    name: "createTask",
-    description: "Create a new task or reminder for the patient",
-    parameters: [
-      {
-        name: "taskDescription",
-        type: "string",
-        description: "Description of the task to create",
-        required: true,
-      },
-    ],
-    handler: async ({ taskDescription }) => {
-      await addTask(taskDescription);
-      addMemory(`Created task: ${taskDescription}`);
-      return `✓ Task created: "${taskDescription}"`;
-    },
-  });
+  // Poll for active agent session state
+  React.useEffect(() => {
+    const pollSession = async () => {
+      try {
+        const response = await fetch('/api/session');
+        const data = await response.json();
+        
+        if (data.success && data.activeAgent) {
+          setAgent(data.activeAgent);
+        } else if (data.success && !data.activeAgent) {
+          reset(); // Clear UI if no active agent
+        }
+      } catch (error) {
+        console.error("Error polling session:", error);
+      }
+    };
 
-  // Action: Report Health
-  useCopilotAction({
-    name: "checkHealth",
-    description: "Report health symptoms or concerns",
-    parameters: [
-      {
-        name: "symptom",
-        type: "string",
-        description: "Health symptom or concern to report",
-        required: true,
-      },
-    ],
-    handler: async ({ symptom }) => {
-      addHealthNote(symptom);
-      addMemory(`Reported health concern: ${symptom}`);
-      return "I've recorded your health concern. Please consult your doctor if needed.";
-    },
-  });
+    // Poll every 2 seconds
+    const interval = setInterval(pollSession, 2000);
+    
+    // Initial poll
+    pollSession();
+
+    return () => clearInterval(interval);
+  }, [setAgent, reset]);
+
+  // Remove client-side action handlers; rely on server-side actions via CopilotKit runtime
 
   return (
     <SidebarProvider
@@ -125,11 +119,21 @@ function DashboardContent() {
                     <li>"Tell me about my profile"</li>
                   </ul>
                 </div>
+                <div className="bg-white p-4 rounded-lg border border-pink-100">
+                  <p className="font-semibold text-pink-900 mb-2">💝 Comfort</p>
+                  <ul className="space-y-1 text-gray-700">
+                    <li>"I miss Sarah"</li>
+                    <li>"I want to see photos of my daughter"</li>
+                  </ul>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </SidebarInset>
+      
+      {/* Agent Status Indicator */}
+      <AgentStatusIndicator agent={currentAgent} isProcessing={isProcessing} />
     </SidebarProvider>
   );
 }
@@ -138,17 +142,34 @@ export default function Page() {
   return (
     <PatientStateProvider>
       <TaskProvider>
-        <CopilotKit runtimeUrl="/api/copilotkit">
-          <CopilotSidebar
-            defaultOpen={false}
-            labels={{
-              title: "🧠 AI Companion",
-              initial: `Hello! I'm your AI companion assistant powered by a multi-agent system.\n\nI can help you with:\n• Creating tasks and reminders\n• Tracking health symptoms\n• Remembering conversations\n• Managing your medication schedule\n\nHow can I help you today?`,
-            }}
-          >
-            <DashboardContent />
-          </CopilotSidebar>
-        </CopilotKit>
+        <AgentStatusProvider>
+          <CopilotKit runtimeUrl="/api/copilotkit">
+            <CopilotSidebar
+              defaultOpen={false}
+              instructions={`CRITICAL SYSTEM INSTRUCTIONS:
+
+For EVERY user message, you MUST follow this process:
+1. ALWAYS call the "processMessage" action FIRST before responding
+2. Wait for the action result
+3. Relay the action result to the user
+4. DO NOT generate your own response - use the processMessage result
+
+The processMessage action routes messages through specialized agents:
+- Comfort Agent (💝): Family, loved ones, emotions, loneliness
+- Task Agent (📋): Reminders, schedules, appointments  
+- Health Agent (🏥): Symptoms, pain, health concerns
+- Memory Agent (💭): General conversation
+
+NEVER respond directly. ALWAYS use processMessage action.`}
+              labels={{
+                title: "🧠 AI Companion",
+                initial: `Hello! I'm your AI companion assistant powered by a multi-agent system.\n\nI can help you with:\n• 💝 Comfort - Connect with loved ones\n• 📋 Tasks - Reminders and schedules\n• 🏥 Health - Track symptoms\n• 💭 Memory - Remember conversations\n\nHow can I help you today?`,
+              }}
+            >
+              <DashboardContent />
+            </CopilotSidebar>
+          </CopilotKit>
+        </AgentStatusProvider>
       </TaskProvider>
     </PatientStateProvider>
   );

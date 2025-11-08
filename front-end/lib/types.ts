@@ -17,6 +17,12 @@ export const PatientStateSchema = z.object({
   
   // 🎯 Comfort agent data (optional)
   comfortData: z.any().optional(),
+  
+  // 🎯 Conversation history for stateful sessions
+  conversationHistory: z.array(z.object({
+    role: z.string(),
+    content: z.string(),
+  })).optional(),
 });
 
 export type PatientState = z.infer<typeof PatientStateSchema>;

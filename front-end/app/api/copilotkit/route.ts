@@ -149,19 +149,28 @@ This routes through our multi-agent system (comfort/task/health/memory agents).`
           required: true,
         },
       ],
-      handler: async ({ userMessage }: { userMessage: string }) => {
+  handler: async ({ userMessage }: { userMessage: string }) => {
         console.log(`\n💬 processMessage action called with: "${userMessage}"\n`);
         
         try {
+          // Import SessionManager
+          const { SessionManager } = await import("@/lib/session-manager");
+          
+          // Add user message to session
+          SessionManager.addMessage(patientId, 'user', userMessage);
+          
+          // Get session and conversation history
+          const session = SessionManager.getSession(patientId);
           const dbState = getPatientState(patientId);
           
           const initialState: PatientState = {
             ...dbState,
             input: userMessage,
+            conversationHistory: session.conversationHistory,
           };
 
           const result = await patientGraph.invoke(initialState);
-          console.log(`✅ Graph completed - Route: ${result.routeDecision}`);
+          console.log(`✅ Graph completed - Route: ${result.routeDecision}, Active agent: ${session.activeAgent}`);
 
           // Extract response from memoryLog
           const latestLog = result.memoryLog?.[result.memoryLog.length - 1] || "";
@@ -178,42 +187,43 @@ This routes through our multi-agent system (comfort/task/health/memory agents).`
           
           responseText = `${agentEmoji} ${responseText}`;
           
-          // Format comfort data if present
+          // Format comfort data if present (include URLs for media)
           if (result.comfortData) {
-            const { lovedOne, photos, audio, callSuggestion } = result.comfortData;
-            
+            const { lovedOne, photos, audio, callSuggestion } = result.comfortData as any;
+
             if (lovedOne) {
-              responseText += `\n\n👤 **${lovedOne.name}** (your ${lovedOne.relationship})`;
+              responseText += `\n\n👤 ${lovedOne.name} (your ${lovedOne.relationship})`;
               if (lovedOne.phone_number) {
                 responseText += `\n📞 ${lovedOne.phone_number}`;
               }
             }
-            
+
             if (photos && photos.length > 0) {
-              responseText += `\n\n📸 **Photos:**`;
-              photos.forEach((p: any) => {
-                responseText += `\n• ${p.description}`;
+              responseText += `\n\n📸 Photos:`;
+              photos.forEach((p: any, idx: number) => {
+                const url = p.path || p.photo_path;
+                responseText += `\n${idx + 1}. ${p.description || 'Photo'} → ${url}`;
               });
             }
-            
+
             if (audio && audio.length > 0) {
-              responseText += `\n\n🎵 **Audio messages:**`;
-              audio.forEach((a: any) => {
-                responseText += `\n• ${a.description} (${a.duration}s)`;
+              responseText += `\n\n🎵 Audio messages:`;
+              audio.forEach((a: any, idx: number) => {
+                const url = a.path || a.audio_path;
+                responseText += `\n${idx + 1}. ${a.description || 'Message'} (${a.duration || '?'}s) → ${url}`;
               });
             }
-            
+
             if (callSuggestion) {
               responseText += `\n\n💡 Would you like to call ${lovedOne?.name || 'them'}?`;
             }
           }
+          
+          // Add assistant response to session
+          SessionManager.addMessage(patientId, 'assistant', responseText);
 
-          return {
-            success: true,
-            route: result.routeDecision,
-            message: responseText,
-            comfortData: result.comfortData,
-          };
+          // Return plain string so CopilotKit displays the message directly
+          return responseText;
         } catch (error) {
           console.error("❌ Error in processMessage:", error);
           return {

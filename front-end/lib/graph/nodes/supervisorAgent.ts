@@ -1,85 +1,81 @@
 import { ChatOpenAI } from "@langchain/openai";
 import { PatientState } from "@/lib/types";
 import { InteractionDB } from "@/lib/db";
+import { SessionManager } from "@/lib/session-manager";
 
-const model = new ChatOpenAI({ model: "gpt-4o-mini" });
+// Low temperature for deterministic routing fallback
+const model = new ChatOpenAI({ model: "gpt-4o-mini", temperature: 0 });
 
 export async function supervisorAgent(state: PatientState): Promise<PatientState> {
-  const patientId = 1; // Default patient
-  const input = state.input.toLowerCase();
+  const patientId = 1;
+  const rawInput = state.input;
+  const input = rawInput.toLowerCase();
 
-  // KEYWORD-BASED ROUTING (override AI if keywords match)
-  const comfortKeywords = [
-    'miss', 'missing', 'lonely', 'sad', 'family', 'relative', 'loved one',
-    'daughter', 'son', 'grandchild', 'grandson', 'granddaughter', 'spouse',
-    'wife', 'husband', 'mother', 'father', 'sister', 'brother',
-    'photo', 'picture', 'voice', 'call', 'see them', 'hear them',
-    'sarah', 'michael', 'emma' // Specific loved ones from database
-  ];
-  
-  const hasComfortKeyword = comfortKeywords.some(keyword => input.includes(keyword));
-  
-  if (hasComfortKeyword) {
-    console.log(`🎯 Supervisor KEYWORD MATCH → COMFORT (keyword found in: "${state.input}")`);
-    InteractionDB.log(patientId, state.input, 'comfort');
-    return { ...state, routeDecision: 'comfort' };
+  const session = SessionManager.getSession(patientId);
+  console.log(`\n🎯 Supervisor: input="${rawInput}" activeAgent=${session.activeAgent || 'none'}`);
+
+  // End session keywords
+  const endKeywords = ['thanks', 'done', 'stop', 'nevermind', 'never mind', 'that\'s all', 'goodbye'];
+  if (session.activeAgent && endKeywords.some(k => input.includes(k))) {
+    console.log(`🧹 Supervisor: Ending session for ${session.activeAgent}`);
+    SessionManager.setActiveAgent(patientId, null);
+    InteractionDB.log(patientId, rawInput, 'memory');
+    return { ...state, routeDecision: 'memory' };
   }
 
-  const prompt = `
-You are routing patient inputs for a dementia patient to the correct specialized agent.
+  // Stay with current agent if follow-up matches continuation logic
+  if (session.activeAgent && SessionManager.shouldStayActive(patientId, rawInput)) {
+    console.log(`🔁 Supervisor: Staying with ${session.activeAgent}`);
+    InteractionDB.log(patientId, rawInput, session.activeAgent);
+    return { ...state, routeDecision: session.activeAgent };
+  }
 
-AGENTS AND THEIR TRIGGERS:
+  // Keyword sets for initial or switching routing
+  const comfortKeywords = [
+    'miss','missing','lonely','sad','family','relative','loved','daughter','son','grandchild','grandson','granddaughter','spouse','wife','husband','mother','father','sister','brother','photo','picture','pic','image','voice','call','see','hear','sarah','michael','emma'
+  ];
+  const taskKeywords = ['remind','reminder','task','tasks','medication','pills','appointment','schedule','today','tomorrow','later'];
+  const healthKeywords = ['pain','hurt','sick','ill','dizzy','nausea','nauseous','headache','feel bad','symptom','doctor'];
 
-🎯 "comfort" - PRIORITIZE THESE (emotional/social needs):
-- Missing family, friends, or loved ones ("I miss...", "I want to see...", "Where is...")
-- Feeling lonely, sad, or emotionally distressed
-- Asking about relatives, family members, or relationships
-- Wanting to see photos, hear voices, or call someone
-- Mentions of: daughter, son, grandchild, spouse, family, relatives, loved ones
-- Examples: "I miss my daughter", "I feel lonely", "Who is this person?", "I want to see photos"
+  const hasComfort = comfortKeywords.some(k => input.includes(k));
+  const hasTask = taskKeywords.some(k => input.includes(k));
+  const hasHealth = healthKeywords.some(k => input.includes(k));
 
-💊 "task" - Practical reminders and schedules:
-- Medication reminders and schedules
-- Appointments, calendar events
-- Daily routines, to-do lists
-- Examples: "remind me to take medicine", "what's my schedule?"
+  // Priority: comfort > health > task for overlapping emotional utterances
+  let decision: 'comfort' | 'task' | 'health' | 'memory' = 'memory';
+  if (hasComfort) decision = 'comfort';
+  else if (hasHealth) decision = 'health';
+  else if (hasTask) decision = 'task';
 
-🏥 "health" - Physical health concerns:
-- Physical symptoms, pain, discomfort
-- Medical concerns, illness
-- Mood tracking related to health
-- Examples: "my head hurts", "I feel sick", "I'm in pain"
+  if (decision !== 'memory') {
+    console.log(`🎯 Supervisor keyword route → ${decision.toUpperCase()}`);
+    SessionManager.setActiveAgent(patientId, decision);
+    InteractionDB.log(patientId, rawInput, decision);
+    return { ...state, routeDecision: decision };
+  }
 
-💭 "memory" - Everything else:
-- General conversation
-- Questions about self or surroundings
-- Unclear inputs that don't fit above categories
+  // Fallback to LLM classification
+  const prompt = `Classify the patient input into one category: comfort, task, health, or memory.
+Input: "${rawInput}"
+Rules:
+- comfort: family, loneliness, wanting photos, calls, emotional support
+- task: reminders, scheduling, medication times
+- health: symptoms, pain, sickness
+- memory: anything else
+Respond with ONLY the category word.`;
 
-CRITICAL: If input mentions family/loved ones OR loneliness/sadness → ALWAYS route to "comfort"
-
-Input: "${state.input}"
-
-Respond with ONLY ONE WORD: comfort, task, health, or memory
-  `.trim();
-  
-  const result = await model.invoke(prompt);
-  const content = typeof result.content === 'string'
-    ? result.content
-    : Array.isArray(result.content)
-      ? result.content.map(c => typeof c === "string" ? c : (c as any).text || "").join("")
-      : String(result.content);
-
-  const decision = content.trim().toLowerCase();
-  
-  // Validate decision - default to memory if invalid
-  const validDecision = ["task", "health", "comfort", "memory"].includes(decision)
-    ? decision
-    : "memory";
-
-  // Log interaction to database
-  InteractionDB.log(patientId, state.input, validDecision);
-
-  console.log(`🎯 Supervisor AI routing "${state.input}" → ${validDecision.toUpperCase()}`);
-
-  return { ...state, routeDecision: validDecision };
+  try {
+    const llm = await model.invoke(prompt);
+    const content = typeof llm.content === 'string' ? llm.content : String(llm.content);
+    const rawDecision = content.trim().toLowerCase();
+    const valid = ['comfort','task','health','memory'].includes(rawDecision) ? rawDecision as any : 'memory';
+    console.log(`🤖 Supervisor LLM route → ${valid.toUpperCase()}`);
+    if (valid !== 'memory') SessionManager.setActiveAgent(patientId, valid);
+    InteractionDB.log(patientId, rawInput, valid);
+    return { ...state, routeDecision: valid };
+  } catch (e) {
+    console.error('❌ Supervisor LLM classification failed, defaulting to memory', e);
+    InteractionDB.log(patientId, rawInput, 'memory');
+    return { ...state, routeDecision: 'memory' };
+  }
 }

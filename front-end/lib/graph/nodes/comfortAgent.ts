@@ -23,15 +23,27 @@ export async function comfortAgent(state: PatientState): Promise<PatientState> {
     };
   }
 
+  // Build conversation context for pronoun resolution
+  let conversationContext = "";
+  if (state.conversationHistory && state.conversationHistory.length > 0) {
+    conversationContext = "\n\nRecent conversation:\n" + 
+      state.conversationHistory.slice(-4).map(msg => 
+        `${msg.role === 'user' ? 'Patient' : 'You'}: ${msg.content}`
+      ).join('\n');
+  }
+
   const analysisPrompt = `You are a warm, empathetic AI companion for ${state.name}, who has ${state.diagnosis}.
 
-Patient said: "${state.input}"
+Patient's current message: "${state.input}"
+${conversationContext}
 
 Available loved ones:
 ${lovedOnes.map(lo => `- ${lo.name} (${lo.relationship})`).join('\n')}
 
+IMPORTANT: Use the conversation history to resolve pronouns (e.g., "her" might refer to someone mentioned earlier).
+
 Analyze their emotional state and needs:
-1. Which specific person are they asking about? (match names or relationships)
+1. Which specific person are they asking about? (match names, relationships, or pronouns from context)
 2. What emotion are they feeling? (lonely, sad, confused, anxious, curious, happy)
 3. What would help most? (see photos, hear voice, make a call, remember who someone is)
 4. Generate a warm, empathetic response (2-3 sentences, as if speaking to a beloved family member)
