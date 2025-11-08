@@ -86,26 +86,50 @@ const runtime = new CopilotRuntime({
       },
     },
     {
+      name: "getTasks",
+      description: "Get all tasks from the task list. Use this when the user asks about their tasks, todo list, or what they need to do.",
+      parameters: [],
+      handler: async () => {
+        // Get only tasks from database
+        const tasks = TaskDB.getAll(patientId, true);
+        
+        const activeTasks = tasks.filter(t => !t.completed);
+        const completedTasks = tasks.filter(t => t.completed);
+        
+        return {
+          success: true,
+          totalTasks: tasks.length,
+          activeTasks: activeTasks.length,
+          completedTasks: completedTasks.length,
+          tasks: tasks.map(t => ({
+            id: t.id,
+            description: t.description,
+            completed: t.completed,
+            createdAt: t.created_at,
+          })),
+          message: activeTasks.length > 0 
+            ? `You have ${activeTasks.length} active task${activeTasks.length !== 1 ? 's' : ''}: ${activeTasks.map(t => t.description).join(', ')}`
+            : "You don't have any active tasks right now.",
+        };
+      },
+    },
+    {
       name: "getPatientInfo",
-      description: "Get the patient's profile information and current state",
+      description: "Get the patient's profile information (name, age, diagnosis, medications). Use this when asked about the patient's profile or medication schedule.",
       parameters: [],
       handler: async () => {
         // Get fresh data from database
         const profile = PatientDB.getProfile(patientId);
-        const currentState = getPatientState(patientId);
         
         return {
+          success: true,
           profile: {
             name: profile?.name,
             age: profile?.age,
             diagnosis: profile?.diagnosis,
             medications: profile?.medications || [],
           },
-          state: {
-            tasks: currentState.tasks,
-            memoryLog: currentState.memoryLog,
-            healthNotes: currentState.healthNotes,
-          },
+          message: `Patient: ${profile?.name}, ${profile?.age} years old. Diagnosis: ${profile?.diagnosis}. Medications: ${profile?.medications.join(', ')}`,
         };
       },
     },
