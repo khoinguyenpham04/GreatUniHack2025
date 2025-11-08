@@ -1,36 +1,276 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# 🧠 Dementia Companion - Multi-Agent AI System
 
-## Getting Started
+A sophisticated Next.js application featuring a multi-agent AI system powered by **LangGraph** and **CopilotKit**, designed to assist Alzheimer's and dementia patients with daily tasks, health tracking, and compassionate conversation.
 
-First, run the development server:
+## ✨ Features
 
+- 🤖 **Multi-Agent System** - 4 specialized AI agents (Memory, Supervisor, Task, Health)
+- 💬 **Conversational Interface** - CopilotKit-powered chat sidebar
+- 📋 **Task Management** - Create, track, and complete tasks
+- 🏥 **Health Tracking** - Automatic symptom detection with severity classification
+- 🗄️ **SQLite Database** - Persistent storage for all patient data
+- 💾 **Conversation Memory** - Full conversation history across sessions
+- 👤 **Patient Profiles** - Personalized interactions based on patient data
+- 💊 **Medication Tracking** - Schedule and adherence monitoring
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+
+- OpenAI API key
+
+### Installation
+
+1. **Clone and install dependencies**
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cd front-end
+npm install
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+2. **Set up environment variables**
+```bash
+# Create .env.local
+OPENAI_API_KEY=sk-your-openai-api-key-here
+NEXT_PUBLIC_BASE_URL=http://localhost:3000
+```
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+3. **Initialize database**
+```bash
+npm run db:init
+```
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+4. **Run development server**
+```bash
+npm run dev
+```
 
-## Learn More
+Open [http://localhost:3000](http://localhost:3000) to see the app.
 
-To learn more about Next.js, take a look at the following resources:
+## 🏗️ Architecture
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Multi-Agent System
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```
+User Input
+    ↓
+Memory Agent (Compassionate AI)
+    ↓
+Supervisor Agent (Routes to: task | health | memory)
+    ↓
+Specialized Agents (Task Agent | Health Agent)
+    ↓
+Database Storage (SQLite)
+    ↓
+UI Updates (Real-time via React Context)
+```
 
-## Deploy on Vercel
+### Technology Stack
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **Framework**: Next.js 16
+- **AI Orchestration**: LangGraph
+- **Chat Interface**: CopilotKit
+- **Language Model**: OpenAI GPT-4o / GPT-4o-mini
+- **Database**: SQLite (better-sqlite3)
+- **Styling**: TailwindCSS
+- **Type Safety**: TypeScript + Zod
+- **UI Components**: Radix UI
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 📚 Documentation
+
+- **[QUICK_START.md](QUICK_START.md)** - 5-minute setup guide
+- **[ARCHITECTURE.md](ARCHITECTURE.md)** - Complete system architecture
+- **[DATABASE.md](DATABASE.md)** - Database schema and operations
+- **[INTEGRATION.md](INTEGRATION.md)** - CopilotKit integration details
+- **[CHANGES.md](CHANGES.md)** - Detailed changelog
+- **[DATABASE_INTEGRATION_SUMMARY.md](DATABASE_INTEGRATION_SUMMARY.md)** - DB integration summary
+
+## 🗄️ Database
+
+The system uses SQLite for persistent storage:
+
+### Tables
+- **patients** - Patient profiles
+- **medications** - Medication schedules
+- **memory_logs** - Conversation history
+- **tasks** - Patient tasks and reminders
+- **health_notes** - Tracked symptoms with severity
+- **interactions** - Agent routing analytics
+
+### Commands
+```bash
+npm run db:init   # Initialize database
+npm run db:reset  # Reset database (fresh start)
+```
+
+Database location: `data/patients.db` (gitignored)
+
+## 🤖 AI Agents
+
+### 1. Memory Agent
+- Compassionate responses using patient profile
+- Accesses conversation history from database
+- Temperature: 0.3 (stable and factual)
+
+### 2. Supervisor Agent
+- Routes inputs: "task" | "health" | "memory"
+- Logs all interactions for analytics
+- Smart classification using GPT-4o-mini
+
+### 3. Task Agent
+- Creates tasks and medication reminders
+- Integrates with medication database
+- Tracks task completion
+
+### 4. Health Agent
+- Extracts symptoms from natural language
+- Classifies severity (low/medium/high)
+- Persistent health tracking
+
+## 💻 Development
+
+### Scripts
+
+```bash
+npm run dev         # Start dev server (auto-initializes DB)
+npm run build       # Build for production (auto-initializes DB)
+npm run start       # Start production server
+npm run lint        # Run ESLint
+npm run db:init     # Initialize database
+npm run db:reset    # Reset database
+```
+
+### Project Structure
+
+```
+front-end/
+├── app/
+│   ├── api/
+│   │   ├── agent/         # LangGraph endpoint
+│   │   ├── copilotkit/    # CopilotKit runtime
+│   │   └── db/            # Database API
+│   ├── dashboard/         # Dashboard page
+│   └── page.tsx           # Main UI
+├── components/
+│   ├── patient-profile-card.tsx
+│   ├── task-list.tsx
+│   ├── memory-log-card.tsx
+│   └── health-notes-card.tsx
+├── lib/
+│   ├── db/                # Database layer
+│   │   ├── schema.ts
+│   │   ├── index.ts
+│   │   └── init.ts
+│   ├── graph/             # LangGraph agents
+│   │   ├── index.ts
+│   │   └── nodes/
+│   │       ├── memoryAgent.ts
+│   │       ├── supervisorAgent.ts
+│   │       ├── taskAgent.ts
+│   │       └── healthAgent.ts
+│   ├── task-context.tsx   # Task state
+│   └── state-context.tsx  # Patient state
+└── data/
+    └── patients.db        # SQLite database
+```
+
+## 🎯 Usage Examples
+
+### Creating Tasks
+```
+"Create a task to take my medication at 2pm"
+→ Task appears in UI, saved to database
+```
+
+### Health Tracking
+```
+"I have a severe headache"
+→ Extracted as health note with high severity
+```
+
+### General Conversation
+```
+"What's my medication schedule?"
+→ Memory Agent responds using patient profile
+```
+
+## 🔧 API Endpoints
+
+### CopilotKit
+- `POST /api/copilotkit` - Main chat endpoint with actions
+
+### Database
+- `GET /api/db/state` - Get complete patient state
+- `GET /api/db/tasks` - Get all tasks
+- `POST /api/db/tasks` - Create task
+- `PATCH /api/db/tasks` - Toggle task
+- `DELETE /api/db/tasks?id=X` - Delete task
+
+### LangGraph
+- `POST /api/agent` - Direct agent invocation
+
+## 🧪 Testing
+
+```bash
+# Build test
+npm run build
+
+# Manual testing
+npm run dev
+# Open http://localhost:3000
+# Try: "Create a task to call my daughter"
+```
+
+## 🐛 Troubleshooting
+
+**Database Issues**
+```bash
+rm -rf data/
+npm run db:init
+```
+
+**Build Errors**
+```bash
+rm -rf node_modules .next
+npm install
+npm run build
+```
+
+**Chat Not Working**
+- Check OpenAI API key in `.env.local`
+- Restart dev server
+- Check browser console for errors
+
+## 📊 Current Status
+
+✅ Multi-agent system operational  
+✅ SQLite database integrated  
+✅ CopilotKit chat interface  
+✅ Task management working  
+✅ Health tracking active  
+✅ Production build passing  
+✅ Full documentation complete  
+
+## 🚧 Future Enhancements
+
+- [ ] Voice input/output
+- [ ] Multi-patient support with auth
+- [ ] Family member dashboard
+- [ ] Medication adherence analytics
+- [ ] Health trend visualization
+- [ ] Export patient data (PDF)
+- [ ] Memory games integration
+- [ ] Photo recognition for family
+
+## 📝 License
+
+This project is part of GreatUniHack2025.
+
+## 🤝 Contributing
+
+Built with ❤️ for Alzheimer's and Dementia patients.
+
+---
+
+**Version**: 2.0.0  
+**Status**: Production Ready  
+**Last Updated**: November 8, 2025

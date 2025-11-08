@@ -3,10 +3,12 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
-    "build": "next build",
+    "dev": "npm run db:init && next dev",
+    "build": "npm run db:init && next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:init": "tsx lib/db/init.ts",
+    "db:reset": "rm -rf data/patients.db && npm run db:init"
   },
   "dependencies": {
     "@ag-ui/client": "^0.0.39",
@@ -35,7 +37,9 @@
     "@radix-ui/react-tooltip": "^1.2.8",
     "@tabler/icons-react": "^3.35.0",
     "@tanstack/react-table": "^8.21.3",
+    "@types/better-sqlite3": "^7.6.13",
     "ai": "^5.0.89",
+    "better-sqlite3": "^12.4.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "langchain": "^1.0.3",
@@ -60,6 +64,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.0.1",
     "tailwindcss": "^4",
+    "tsx": "^4.20.6",
     "tw-animate-css": "^1.4.0",
     "typescript": "^5"
   }

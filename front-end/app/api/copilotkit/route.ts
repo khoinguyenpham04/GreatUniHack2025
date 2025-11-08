@@ -5,24 +5,14 @@ import {
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
 import { patientGraph } from "@/lib/graph";
-import patient from "@/lib/patient.json";
+import { getPatientState, TaskDB, HealthDB, PatientDB } from "@/lib/db";
 import { PatientState } from "@/lib/types";
 
 const serviceAdapter = new OpenAIAdapter({
   model: "gpt-4o",
 });
 
-// Global store for agent state (in production, use a database or Redis)
-let globalState: PatientState = {
-  name: patient.name,
-  age: patient.age,
-  diagnosis: patient.diagnosis,
-  med_schedule: patient.med_schedule ?? [],
-  input: "",
-  memoryLog: [],
-  tasks: [],
-  healthNotes: [],
-};
+const patientId = 1; // Default patient ID
 
 const runtime = new CopilotRuntime({
   actions: [
@@ -38,20 +28,24 @@ const runtime = new CopilotRuntime({
         },
       ],
       handler: async ({ taskDescription }: { taskDescription: string }) => {
-        globalState.input = `Create task: ${taskDescription}`;
-        globalState.tasks.push(taskDescription);
+        // Get current state from database
+        const currentState = getPatientState(patientId);
+        currentState.input = `Create task: ${taskDescription}`;
         
-        const result = await patientGraph.invoke(globalState);
-        globalState = { ...result };
+        // Run through LangGraph agents
+        const result = await patientGraph.invoke(currentState);
+        
+        // Tasks are automatically saved to DB by taskAgent
+        const tasks = TaskDB.getActive(patientId);
         
         return {
           success: true,
           task: taskDescription,
           message: `✓ Task created: "${taskDescription}"`,
           state: {
-            tasks: globalState.tasks,
-            memoryLog: globalState.memoryLog,
-            healthNotes: globalState.healthNotes,
+            tasks: tasks.map(t => t.description),
+            memoryLog: result.memoryLog,
+            healthNotes: result.healthNotes,
           },
         };
       },
@@ -68,20 +62,25 @@ const runtime = new CopilotRuntime({
         },
       ],
       handler: async ({ symptom }: { symptom: string }) => {
-        globalState.input = symptom;
-        globalState.routeDecision = "health";
+        // Get current state from database
+        const currentState = getPatientState(patientId);
+        currentState.input = symptom;
+        currentState.routeDecision = "health";
         
-        const result = await patientGraph.invoke(globalState);
-        globalState = { ...result };
+        // Run through LangGraph agents
+        const result = await patientGraph.invoke(currentState);
+        
+        // Health notes are automatically saved to DB by healthAgent
+        const healthNotes = HealthDB.getRecent(patientId, 10);
         
         return {
           success: true,
           message: "I've recorded your health concern. Please consult your doctor if needed.",
-          healthNotes: globalState.healthNotes,
+          healthNotes: healthNotes.map(h => h.note),
           state: {
-            tasks: globalState.tasks,
-            memoryLog: globalState.memoryLog,
-            healthNotes: globalState.healthNotes,
+            tasks: result.tasks,
+            memoryLog: result.memoryLog,
+            healthNotes: healthNotes.map(h => h.note),
           },
         };
       },
@@ -91,17 +90,21 @@ const runtime = new CopilotRuntime({
       description: "Get the patient's profile information and current state",
       parameters: [],
       handler: async () => {
+        // Get fresh data from database
+        const profile = PatientDB.getProfile(patientId);
+        const currentState = getPatientState(patientId);
+        
         return {
           profile: {
-            name: globalState.name,
-            age: globalState.age,
-            diagnosis: globalState.diagnosis,
-            medications: globalState.med_schedule,
+            name: profile?.name,
+            age: profile?.age,
+            diagnosis: profile?.diagnosis,
+            medications: profile?.medications || [],
           },
           state: {
-            tasks: globalState.tasks,
-            memoryLog: globalState.memoryLog,
-            healthNotes: globalState.healthNotes,
+            tasks: currentState.tasks,
+            memoryLog: currentState.memoryLog,
+            healthNotes: currentState.healthNotes,
           },
         };
       },

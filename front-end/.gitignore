@@ -32,6 +32,12 @@ next-env.d.ts
 .env.*.local
 .env.local
 
+### SQLite Database
+data/
+*.db
+*.db-shm
+*.db-wal
+
 ### Logs, coverage
 logs/
 *.log
