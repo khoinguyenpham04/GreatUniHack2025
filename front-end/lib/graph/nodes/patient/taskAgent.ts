@@ -40,10 +40,13 @@ Keep your response in this exact format.`;
 
   const replyContent = typeof reply.content === 'string' ? reply.content : String(reply.content);
   
+  let responseMessage = "I've updated your activities.";
+  
   // Process the action
   if (replyContent.startsWith("ADD:")) {
     const newActivity = replyContent.replace("ADD:", "").trim();
     DailyActivityDB.add(patientId, newActivity);
+    responseMessage = `Added "${newActivity}" to your to-do list.`;
   } else if (replyContent.startsWith("REMOVE:")) {
     const activityToRemove = replyContent.replace("REMOVE:", "").trim();
     // Find matching activity and toggle it inactive
@@ -52,6 +55,17 @@ Keep your response in this exact format.`;
     );
     if (matching) {
       DailyActivityDB.toggleActive(matching.id);
+      responseMessage = `Removed "${matching.activity}" from your list.`;
+    } else {
+      responseMessage = "I couldn't find that activity in your list.";
+    }
+  } else if (replyContent.startsWith("SHOW")) {
+    const updatedActivities = DailyActivityDB.getActive(patientId);
+    if (updatedActivities.length > 0) {
+      const activityList = updatedActivities.map((a) => a.activity).join(", ");
+      responseMessage = `Here's what you have today: ${activityList}`;
+    } else {
+      responseMessage = "You don't have any activities scheduled for today.";
     }
   }
 
@@ -62,5 +76,6 @@ Keep your response in this exact format.`;
   return {
     ...state,
     tasks: taskDescriptions,
+    memoryLog: [...state.memoryLog, responseMessage],
   };
 }

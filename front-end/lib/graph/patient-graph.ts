@@ -1,52 +1,30 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { PatientStateSchema } from "@/lib/types";
 import { memoryAgent } from "./nodes/patient/memoryAgent";
+import { supervisorAgent } from "./nodes/patient/supervisorAgent";
 import { taskAgent } from "./nodes/patient/taskAgent";
-import { ChatOpenAI } from "@langchain/openai";
-
-const routerModel = new ChatOpenAI({
-  model: "gpt-4o-mini",
-  temperature: 0,
-});
 
 /**
- * Simple router for patient dashboard
- * Routes to either memory agent (default) or task agent (for activity management)
- */
-async function routePatientInput(state: any) {
-  const input = state.input.toLowerCase();
-  
-  // Simple keyword-based routing for patient interface
-  const taskKeywords = ['task', 'to-do', 'todo', 'activity', 'activities', 'add', 'remove', 'delete', 'complete'];
-  
-  // Check if input is about managing tasks/activities
-  const isTaskRelated = taskKeywords.some(keyword => input.includes(keyword));
-  
-  if (isTaskRelated) {
-    return "taskAgent";
-  }
-  
-  // Default: route to memory agent for conversation and memory recall
-  return "memoryAgent";
-}
-
-/**
- * Patient Graph - Simplified workflow for dementia patients
+ * Patient Graph - Simplified workflow for dementia patients with supervisor
  * 
  * Flow:
- * 1. Start with memory agent (for warm, personal responses with photo context)
- * 2. Check if task-related → route to task agent
- * 3. Otherwise → stay with memory agent for conversation
+ * 1. Memory Agent: Warm response with photo memory context
+ * 2. Supervisor Agent: Intelligently routes based on intent (task vs memory)
+ * 3. Task Agent: If task-related, updates daily activities
+ * 4. End: Returns complete state with updates
  */
 const patientGraphBuilder = new StateGraph(PatientStateSchema)
   .addNode("memoryAgent", memoryAgent)
+  .addNode("supervisorAgent", supervisorAgent)
   .addNode("taskAgent", taskAgent)
   .addEdge(START, "memoryAgent")
-  .addConditionalEdges("memoryAgent", async (state) => {
-    const route = await routePatientInput(state);
-    if (route === "taskAgent") {
+  .addEdge("memoryAgent", "supervisorAgent")
+  .addConditionalEdges("supervisorAgent", (state) => {
+    // Route based on supervisor's decision
+    if (state.routeDecision === "task") {
       return "taskAgent";
     }
+    // Default: end for memory/conversation
     return END;
   })
   .addEdge("taskAgent", END);

@@ -26,6 +26,8 @@ function PatientDashboardContent() {
   const [selectedPhoto, setSelectedPhoto] = useState<{ src: string; alt: string } | null>(null);
   const [photoMemoryContext, setPhotoMemoryContext] = useState<string>("");
   const [isLoadingMemory, setIsLoadingMemory] = useState(false);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
+  const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch daily activities, health tips, and memory photos
@@ -199,12 +201,58 @@ function PatientDashboardContent() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputMessage.trim()) {
-      // Handle message submission
-      console.log("Message:", inputMessage);
-      setInputMessage("");
+    if (!inputMessage.trim() || isSendingMessage) return;
+
+    const userMessage = inputMessage.trim();
+    setInputMessage(""); // Clear input immediately
+    setIsSendingMessage(true);
+    
+    // Add user message to chat history
+    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
+    console.log("Sending message:", userMessage);
+
+    try {
+      // Call patient graph API
+      const response = await fetch('/api/agent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          input: userMessage,
+          workflow: 'patient'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('API response:', data);
+      
+      if (data.success && data.state) {
+        // Update chat history with AI response
+        if (data.state.memoryLog && data.state.memoryLog.length > 0) {
+          const latestResponse = data.state.memoryLog[data.state.memoryLog.length - 1];
+          setChatHistory(prev => [...prev, { role: 'assistant', content: latestResponse }]);
+          addMemory(latestResponse);
+        }
+
+        // Refresh activities if they were updated
+        const activitiesResponse = await fetch('/api/db/patient-data');
+        const activitiesData = await activitiesResponse.json();
+        if (activitiesData.success) {
+          setDailyActivities(activitiesData.data.dailyActivities);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      const errorMsg = "Sorry, I couldn't process that right now. Please try again.";
+      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
+      addMemory(errorMsg);
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
@@ -366,36 +414,69 @@ function PatientDashboardContent() {
             </div>
           </div>
 
-          {/* Chat Input - Hidden when viewing photo */}
+          {/* Chat History & Input - Hidden when viewing photo */}
           {!selectedPhoto && (
-            <div className="border-t border-gray-200 bg-white p-4">
-              <div className="max-w-4xl mx-auto">
-                <form onSubmit={handleSubmit} className="relative">
-                  <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-3xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
-                    <input
-                      type="text"
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="Who is this person, she keeps saying we went on a trip last summer."
-                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400"
-                    />
-                    <button
-                      type="button"
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                      aria-label="Voice input"
-                    >
-                      <Mic className="w-5 h-5 text-gray-500" />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!inputMessage.trim()}
-                      className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      aria-label="Send message"
-                    >
-                      <Send className="w-5 h-5 text-white" />
-                    </button>
+            <div className="border-t border-gray-200 bg-white">
+              {/* Chat History */}
+              {chatHistory.length > 0 && (
+                <div className="max-w-4xl mx-auto px-4 py-3 max-h-48 overflow-y-auto border-b border-gray-100">
+                  <div className="space-y-3">
+                    {chatHistory.map((message, idx) => (
+                      <div
+                        key={idx}
+                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+                      >
+                        <div
+                          className={`max-w-[80%] px-4 py-2 rounded-2xl ${
+                            message.role === 'user'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-900'
+                          }`}
+                        >
+                          <p className="text-sm">{message.content}</p>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                </form>
+                </div>
+              )}
+
+              {/* Input */}
+              <div className="p-4">
+                <div className="max-w-4xl mx-auto">
+                  <form onSubmit={handleSubmit} className="relative">
+                    <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-3xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
+                      <input
+                        type="text"
+                        value={inputMessage}
+                        onChange={(e) => setInputMessage(e.target.value)}
+                        placeholder="Who is this person, she keeps saying we went on a trip last summer."
+                        disabled={isSendingMessage}
+                        className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
+                      />
+                      <button
+                        type="button"
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                        aria-label="Voice input"
+                        disabled={isSendingMessage}
+                      >
+                        <Mic className="w-5 h-5 text-gray-500" />
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={!inputMessage.trim() || isSendingMessage}
+                        className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        aria-label="Send message"
+                      >
+                        {isSendingMessage ? (
+                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                        ) : (
+                          <Send className="w-5 h-5 text-white" />
+                        )}
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </div>
           )}
