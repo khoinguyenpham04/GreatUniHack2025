@@ -371,6 +371,90 @@ export const InteractionDB = {
 };
 
 /**
+ * Daily activities database operations
+ */
+export const DailyActivityDB = {
+  /**
+   * Get all active daily activities
+   */
+  getActive(patientId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT id, activity, icon FROM daily_activities WHERE patient_id = ? AND is_active = 1 ORDER BY id"
+      )
+      .all(patientId) as Array<{
+      id: number;
+      activity: string;
+      icon: string;
+    }>;
+  },
+
+  /**
+   * Add new activity
+   */
+  add(patientId: number, activity: string, icon: string = '📋') {
+    const db = getDatabase();
+    const result = db
+      .prepare("INSERT INTO daily_activities (patient_id, activity, icon) VALUES (?, ?, ?)")
+      .run(patientId, activity, icon);
+    return result.lastInsertRowid;
+  },
+
+  /**
+   * Toggle activity active status
+   */
+  toggleActive(activityId: number) {
+    const db = getDatabase();
+    db.prepare(
+      "UPDATE daily_activities SET is_active = NOT is_active WHERE id = ?"
+    ).run(activityId);
+  },
+};
+
+/**
+ * Health tips database operations
+ */
+export const HealthTipDB = {
+  /**
+   * Get all active health tips
+   */
+  getActive(patientId: number) {
+    const db = getDatabase();
+    return db
+      .prepare(
+        "SELECT id, tip, icon FROM health_tips WHERE patient_id = ? AND is_active = 1 ORDER BY id"
+      )
+      .all(patientId) as Array<{
+      id: number;
+      tip: string;
+      icon: string;
+    }>;
+  },
+
+  /**
+   * Add new health tip
+   */
+  add(patientId: number, tip: string, icon: string = '💡') {
+    const db = getDatabase();
+    const result = db
+      .prepare("INSERT INTO health_tips (patient_id, tip, icon) VALUES (?, ?, ?)")
+      .run(patientId, tip, icon);
+    return result.lastInsertRowid;
+  },
+
+  /**
+   * Toggle tip active status
+   */
+  toggleActive(tipId: number) {
+    const db = getDatabase();
+    db.prepare(
+      "UPDATE health_tips SET is_active = NOT is_active WHERE id = ?"
+    ).run(tipId);
+  },
+};
+
+/**
  * Get complete patient state (for LangGraph)
  */
 export function getPatientState(patientId: number = 1) {

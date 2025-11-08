@@ -111,6 +111,28 @@ CREATE TABLE IF NOT EXISTS comfort_interactions (
   FOREIGN KEY (loved_one_id) REFERENCES loved_ones(id) ON DELETE SET NULL
 );
 
+-- Daily activities table (patient-friendly tasks)
+CREATE TABLE IF NOT EXISTS daily_activities (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id INTEGER NOT NULL,
+  activity TEXT NOT NULL,
+  icon TEXT DEFAULT '📋',
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
+-- Health tips table (friendly health awareness notes)
+CREATE TABLE IF NOT EXISTS health_tips (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  patient_id INTEGER NOT NULL,
+  tip TEXT NOT NULL,
+  icon TEXT DEFAULT '💡',
+  is_active BOOLEAN DEFAULT 1,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_medications_patient ON medications(patient_id);
 CREATE INDEX IF NOT EXISTS idx_memory_logs_patient ON memory_logs(patient_id);
@@ -122,6 +144,8 @@ CREATE INDEX IF NOT EXISTS idx_loved_ones_patient ON loved_ones(patient_id);
 CREATE INDEX IF NOT EXISTS idx_loved_one_photos ON loved_one_photos(loved_one_id);
 CREATE INDEX IF NOT EXISTS idx_loved_one_audio ON loved_one_audio(loved_one_id);
 CREATE INDEX IF NOT EXISTS idx_comfort_interactions_patient ON comfort_interactions(patient_id);
+CREATE INDEX IF NOT EXISTS idx_daily_activities_patient ON daily_activities(patient_id);
+CREATE INDEX IF NOT EXISTS idx_health_tips_patient ON health_tips(patient_id);
 `;
 
 export const seedDataSQL = `
@@ -156,5 +180,20 @@ VALUES
   (1, 1, '/audio/loved-ones/sarah-goodnight.mp3', 'Sarah saying goodnight', 15),
   (2, 2, '/audio/loved-ones/michael-birthday.mp3', 'Michael birthday message', 30),
   (3, 3, '/audio/loved-ones/emma-song.mp3', 'Emma singing your favorite song', 45);
+
+-- Insert daily activities for patient
+INSERT OR IGNORE INTO daily_activities (id, patient_id, activity, icon)
+VALUES 
+  (1, 1, 'Call Sarah about weekend plans', ''),
+  (2, 1, 'Water the kitchen herbs', ''),
+  (3, 1, 'Morning walk before 10am', ''),
+  (4, 1, 'Finish reading chapter 3', '');
+
+-- Insert health tips for patient
+INSERT OR IGNORE INTO health_tips (id, patient_id, tip, icon)
+VALUES 
+  (1, 1, 'Drink a glass of water every 2 hours', ''),
+  (2, 1, 'Take a 15-minute rest after lunch', ''),
+  (3, 1, 'Light stretching helps with joint stiffness', '');
 `;
 

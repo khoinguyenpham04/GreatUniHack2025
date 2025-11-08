@@ -35,20 +35,20 @@ import {
 
 const data = {
   user: {
-    name: "shadcn",
-    email: "m@example.com",
+    name: "Noah",
+    email: "noah@memoral.ai",
     avatar: "/avatars/shadcn.jpg",
   },
   navMain: [
     {
-      title: "Dashboard",
-      url: "#",
+      title: "Patient",
+      url: "/dashboard",
       icon: IconDashboard,
     },
     {
-      title: "Lifecycle",
-      url: "#",
-      icon: IconListDetails,
+      title: "Caretaker",
+      url: "/dashboard/caretaker",
+      icon: IconUsers,
     },
     {
       title: "Analytics",
@@ -56,14 +56,9 @@ const data = {
       icon: IconChartBar,
     },
     {
-      title: "Projects",
+      title: "Reports",
       url: "#",
-      icon: IconFolder,
-    },
-    {
-      title: "Team",
-      url: "#",
-      icon: IconUsers,
+      icon: IconReport,
     },
   ],
   navClouds: [
@@ -162,7 +157,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             >
               <a href="#">
                 <IconInnerShadowTop className="!size-5" />
-                <span className="text-base font-semibold">Acme Inc.</span>
+                <span className="text-base font-semibold">Memoral</span>
               </a>
             </SidebarMenuButton>
           </SidebarMenuItem>
