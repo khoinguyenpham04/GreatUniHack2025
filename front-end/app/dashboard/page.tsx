@@ -13,6 +13,7 @@ import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import patientData from "@/lib/patient.json";
 import { Send, Mic } from "lucide-react";
 import { useState, useEffect } from "react";
+import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 
 function PatientDashboardContent() {
   const [inputMessage, setInputMessage] = useState("");
@@ -20,6 +21,7 @@ function PatientDashboardContent() {
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
   const [dailyActivities, setDailyActivities] = useState<Array<{ id: number; activity: string; icon: string }>>([]);
   const [healthTips, setHealthTips] = useState<Array<{ id: number; tip: string; icon: string }>>([]);
+  const [carouselSpeed, setCarouselSpeed] = useState<"fast" | "normal" | "slow">("normal");
 
   // Fetch daily activities and health tips
   useEffect(() => {
@@ -36,6 +38,22 @@ function PatientDashboardContent() {
       }
     }
     fetchPatientData();
+  }, []);
+
+  // Adjust carousel speed based on screen size
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setCarouselSpeed("fast");
+      } else {
+        setCarouselSpeed("normal");
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
   }, []);
 
   // Make patient data readable to CopilotKit
@@ -105,7 +123,7 @@ function PatientDashboardContent() {
         <SiteHeader />
         <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-5xl mx-auto px-6 py-4 space-y-4">
+            <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
               {/* Greeting Header */}
               <div className="py-2 text-center">
                 <h1 className="text-2xl font-light text-gray-900">
@@ -114,10 +132,10 @@ function PatientDashboardContent() {
               </div>
 
               {/* Main Grid */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-3xl mx-auto">
                 {/* Daily Tasks */}
                 <div className="rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-2">
+                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
                     <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
                     <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
                   </div>
@@ -125,7 +143,7 @@ function PatientDashboardContent() {
                     {dailyActivities.map((activity) => (
                       <div 
                         key={activity.id} 
-                        className="group flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors cursor-pointer"
+                        className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors cursor-pointer"
                       >
                         <input
                           type="checkbox"
@@ -140,7 +158,7 @@ function PatientDashboardContent() {
                       </div>
                     ))}
                     {dailyActivities.length === 0 && (
-                      <div className="px-3 py-2">
+                      <div className="px-3 py-1.5">
                         <p className="m-0 text-sm text-gray-500">No tasks for today</p>
                       </div>
                     )}
@@ -149,7 +167,7 @@ function PatientDashboardContent() {
 
                 {/* Health Notes */}
                 <div className="rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-2">
+                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
                     <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
                     <h2 className="m-0 text-sm font-medium text-gray-900">Health Notes</h2>
                   </div>
@@ -157,7 +175,7 @@ function PatientDashboardContent() {
                     {healthTips.map((tip) => (
                       <div 
                         key={tip.id} 
-                        className="group flex items-center gap-3 px-3 py-2 hover:bg-gray-50 transition-colors"
+                        className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors"
                       >
                         <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" />
                         <p className="m-0 flex-1 text-sm text-gray-700">
@@ -169,11 +187,24 @@ function PatientDashboardContent() {
                       </div>
                     ))}
                     {healthTips.length === 0 && (
-                      <div className="px-3 py-2">
+                      <div className="px-3 py-1.5">
                         <p className="m-0 text-sm text-gray-500">No health notes</p>
                       </div>
                     )}
                   </div>
+                </div>
+              </div>
+
+              {/* Photo Carousel */}
+              <div className="max-w-3xl mx-auto">
+                <div className="h-[200px] md:h-[220px] rounded-lg flex flex-col antialiased bg-white items-center justify-center relative overflow-hidden mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
+                  <InfiniteMovingCards
+                    items={memoryImages}
+                    direction="right"
+                    speed={carouselSpeed}
+                    pauseOnHover={true}
+                    className="mask-none"
+                  />
                 </div>
               </div>
             </div>
@@ -214,6 +245,25 @@ function PatientDashboardContent() {
     </SidebarProvider>
   );
 }
+
+const memoryImages = [
+  {
+    src: "/mary-neighbor-with-their-grandchild.png",
+    alt: "Met my neighbor's grandchild today. Such a sweet little one.",
+  },
+  {
+    src: "/linda-and-her-bestfriend.jpg",
+    alt: "Linda brought her best friend over after school. They were inseparable.",
+  },
+  {
+    src: "/mary-and-her-daughter-Stacy-and-Linda-her-grandchild.jpg",
+    alt: "Sunday brunch with Stacy and Linda. My two favorite girls.",
+  },
+  {
+    src: "/mary-neighbor-with-their-grandchild.png",
+    alt: "The kids played in the garden all afternoon. Their laughter filled the house.",
+  },
+];
 
 export default function PatientDashboardPage() {
   return (

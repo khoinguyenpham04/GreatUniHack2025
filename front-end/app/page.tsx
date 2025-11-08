@@ -42,7 +42,7 @@ export default function HeroSection() {
 
                     <div className="bg-background rounded-lg relative m-4 overflow-hidden shadow-xl shadow-black/15 ring-1 ring-black/10 sm:m-8 md:m-12">
                         <Image
-                            src="/cute-small-girl-spending-time-with-her-grandparents-home Large.png"
+                            src="/mary-neighbor-with-their-grandchild.png"
                             alt="app screen"
                             width="2880"
                             height="1842"
