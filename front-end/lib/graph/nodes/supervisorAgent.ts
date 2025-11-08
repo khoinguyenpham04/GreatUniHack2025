@@ -1,0 +1,13 @@
+import { ChatOpenAI } from "@langchain/openai";
+import { PatientState } from "@/lib/types";
+
+const model = new ChatOpenAI({ model: "gpt-4o-mini" });
+
+export async function supervisorAgent(state: PatientState): Promise<PatientState> {
+  const prompt = `
+  Classify the input as one of: "task", "health", "memory".
+  Input: "${state.input}"
+  `;
+  const result = await model.invoke(prompt);
+  return { ...state, routeDecision: result.content.trim().toLowerCase() };
+}
