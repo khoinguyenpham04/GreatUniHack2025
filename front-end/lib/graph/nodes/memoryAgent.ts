@@ -7,7 +7,7 @@ const model = new ChatOpenAI({
 });
 
 export async function memoryAgent(state: PatientState): Promise<PatientState> {
-  const { input, patientProfile } = state;
+  const { input, name, age, diagnosis, med_schedule } = state;
 
   // Construct a structured system prompt
   const systemPrompt = `
@@ -15,10 +15,10 @@ You are a compassionate AI assistant for dementia patients.
 You know this patient's background and always respond simply, clearly, and warmly.
 
 PATIENT PROFILE:
-- Name: ${patientProfile.name}
-- Age: ${patientProfile.age}
-- Diagnosis: ${patientProfile.diagnosis}
-- Medications: ${patientProfile.med_schedule.join(", ")}
+- Name: ${name}
+- Age: ${age}
+- Diagnosis: ${diagnosis}
+- Medications: ${med_schedule.join(", ")}
 
 Behavior Guidelines:
 - Always ground your answers in the patient’s profile.
