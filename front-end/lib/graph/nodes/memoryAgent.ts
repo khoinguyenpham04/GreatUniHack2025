@@ -7,7 +7,7 @@ const model = new ChatOpenAI({
 });
 
 export async function memoryAgent(state: PatientState): Promise<PatientState> {
-  const { input, name, age, diagnosis, med_schedule } = state;
+  const { input, name, age, diagnosis, med_schedule, tasks } = state;
 
   // Construct a structured system prompt
   const systemPrompt = `
@@ -19,6 +19,7 @@ PATIENT PROFILE:
 - Age: ${age}
 - Diagnosis: ${diagnosis}
 - Medications: ${med_schedule.join(", ")}
+- Tasks: ${tasks.join(", ")}
 
 Behavior Guidelines:
 - Always ground your answers in the patient’s profile.

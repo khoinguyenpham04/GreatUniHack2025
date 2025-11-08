@@ -2,9 +2,6 @@
   "name": "Mary Thompson",
   "age": 76,
   "diagnosis": "Early-stage Alzheimer's",
-  "med_schedule": [
-    "8am Donepezil",
-    "8pm Memantine"
-  ],
-  "last_med_time": "2025-11-08T17:46:21.059Z"
+  "med_schedule": ["8am Donepezil", "8pm Memantine"],
+  "tasks": []
 }
