@@ -73,6 +73,29 @@ function PatientDashboardContent() {
     };
   }, []);
 
+  async function speakTextWithTTS(text: string) {
+  try {
+    const res = await fetch("/api/text-to-speech", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+
+    if (!res.ok) {
+      console.error("TTS request failed:", await res.text());
+      return;
+    }
+
+    const audioBlob = await res.blob();
+    const audioUrl = URL.createObjectURL(audioBlob);
+    const audio = new Audio(audioUrl);
+    audio.play();
+  } catch (err) {
+    console.error("Error playing TTS:", err);
+  }
+}
+
+
   // Handle photo click - instant fade with loading
   const handlePhotoClick = async (photo: { src: string; alt: string }) => {
     console.log('Photo clicked:', photo.src);
@@ -115,25 +138,27 @@ function PatientDashboardContent() {
       }
 
       const data = await response.json();
-      
-      if (data.success && data.state?.memoryLog && data.state.memoryLog.length > 0) {
-        const latestMemory = data.state.memoryLog[data.state.memoryLog.length - 1];
-        setPhotoMemoryContext(latestMemory);
-      } else {
-        // Fallback to description
-        setPhotoMemoryContext(photo.alt);
+
+      // ✅ Define memoryText early
+      let memoryText = photo.alt; // fallback if nothing returned
+
+      if (data.success && data.state?.memoryLog?.length > 0) {
+        memoryText = data.state.memoryLog[data.state.memoryLog.length - 1];
       }
+
+      // ✅ Update UI and speak
+      setPhotoMemoryContext(memoryText);
+      await speakTextWithTTS(memoryText);
+
     } catch (error) {
-      // Don't show error for aborted requests
       if (error instanceof Error && error.name === 'AbortError') {
         console.log('Request cancelled');
         return;
       }
       console.error('Error loading memory:', error);
-      // Fallback to description on error
+      // Fallback to photo description on error
       setPhotoMemoryContext(photo.alt);
     } finally {
-      // Ensure loading state is always cleared
       setIsLoadingMemory(false);
       abortControllerRef.current = null;
     }
