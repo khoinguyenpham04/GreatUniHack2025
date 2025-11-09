@@ -8,7 +8,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Missing text parameter" }, { status: 400 });
     }
 
-    const voiceId = "pNInz6obpgDQGcFmaJgB"; // you can replace this with your chosen voice ID
+    const voiceId = "Qggl4b0xRMiqOwhPtVWT"; // you can replace this with your chosen voice ID
     const apiKey = process.env.ELEVENLABS_API_KEY;
 
     const response = await fetch(

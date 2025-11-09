@@ -1,8 +1,8 @@
 "use client";
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Pill, Calendar } from "lucide-react";
+import { User, Pill, Clock } from "lucide-react";
 
 interface PatientProfileCardProps {
   name: string;
@@ -20,55 +20,69 @@ export function PatientProfileCard({
   lastMedTime,
 }: PatientProfileCardProps) {
   return (
-    <Card className="border-blue-200 bg-blue-50/50">
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-blue-900">
-          <User className="h-5 w-5" />
-          Patient Profile
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div>
-          <p className="text-sm text-gray-600">Name</p>
-          <p className="text-lg font-semibold text-gray-900">{name}</p>
-        </div>
-        
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <p className="text-sm text-gray-600">Age</p>
-            <p className="text-base font-medium text-gray-900">{age} years</p>
+    <Card className="border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
+      <CardContent className="p-6 space-y-5">
+        {/* Header Section */}
+        <div className="flex items-start justify-between pb-4 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-full bg-blue-600 flex items-center justify-center">
+              <User className="h-6 w-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xl font-semibold text-gray-900">{name}</h3>
+              <p className="text-sm text-gray-500 mt-0.5">Patient ID: #001</p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm text-gray-600">Diagnosis</p>
-            <Badge variant="secondary" className="mt-1">
-              {diagnosis}
-            </Badge>
+          <Badge className="bg-blue-100 text-blue-700 hover:bg-blue-100 border-0 font-medium px-3 py-1">
+            {age} years
+          </Badge>
+        </div>
+
+        {/* Diagnosis Badge */}
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Diagnosis</span>
+          <Badge className="bg-purple-600 hover:bg-purple-600 text-white border-0 font-medium px-3 py-1">
+            {diagnosis}
+          </Badge>
+        </div>
+
+        {/* Medication Schedule */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="h-8 w-8 rounded-lg bg-emerald-100 flex items-center justify-center">
+              <Pill className="h-4 w-4 text-emerald-700" />
+            </div>
+            <span className="text-sm font-semibold text-gray-900">Medication Schedule</span>
+          </div>
+          <div className="space-y-2 pl-10">
+            {medSchedule.map((med, idx) => {
+              // Parse medication string to extract time and name
+              const parts = med.split(' ');
+              const time = parts[0]; // e.g., "8am"
+              const medName = parts.slice(1).join(' '); // rest is medication name
+              
+              return (
+                <div
+                  key={idx}
+                  className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200"
+                >
+                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 font-semibold text-xs px-2.5 py-0.5 min-w-[48px] justify-center">
+                    {time}
+                  </Badge>
+                  <span className="text-sm text-gray-700 font-medium">{medName}</span>
+                </div>
+              );
+            })}
           </div>
         </div>
 
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <Pill className="h-4 w-4 text-blue-600" />
-            <p className="text-sm font-medium text-gray-700">Medication Schedule</p>
-          </div>
-          <div className="space-y-1">
-            {medSchedule.map((med, idx) => (
-              <div
-                key={idx}
-                className="text-sm text-gray-800 bg-white rounded px-3 py-1.5 border border-blue-100"
-              >
-                {med}
-              </div>
-            ))}
-          </div>
-        </div>
-
+        {/* Last Medication Time */}
         {lastMedTime && (
-          <div className="pt-2 border-t border-blue-200">
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Calendar className="h-4 w-4" />
-              <span>Last medication:</span>
-              <span className="font-medium text-gray-900">
+          <div className="pt-4 border-t border-gray-100">
+            <div className="flex items-center gap-2 text-xs text-gray-500">
+              <Clock className="h-3.5 w-3.5" />
+              <span>Last taken:</span>
+              <span className="font-semibold text-gray-700">
                 {new Date(lastMedTime).toLocaleString()}
               </span>
             </div>

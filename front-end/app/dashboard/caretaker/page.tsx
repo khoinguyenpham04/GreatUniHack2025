@@ -13,14 +13,61 @@ import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import { TaskList } from "@/components/task-list";
 import { PatientProfileCard } from "@/components/patient-profile-card";
-import { HealthNotesCard } from "@/components/health-notes-card";
+import { MedicalHealthNotesCard } from "@/components/medical-health-notes-card";
 import { MemoryLogCard } from "@/components/memory-log-card";
 import { useCopilotAction } from "@copilotkit/react-core";
-import patientData from "@/lib/patient.json";
+import { useEffect, useState } from "react";
+
+interface CaretakerData {
+  profile: {
+    name: string;
+    age: number;
+    diagnosis: string;
+    medications: string[];
+  };
+  tasks: Array<{
+    id: number;
+    description: string;
+    completed: number;
+    created_at: string;
+  }>;
+  memoryLogs: Array<{
+    content: string;
+    role: string;
+    created_at: string;
+  }>;
+  healthNotes: Array<{
+    id: number;
+    note: string;
+    severity: string;
+    created_at: string;
+  }>;
+}
 
 function CaretakerDashboardContent() {
   const { addTask } = useTasks();
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
+  const [caretakerData, setCaretakerData] = useState<CaretakerData | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Fetch caretaker data from API
+  useEffect(() => {
+    async function fetchCaretakerData() {
+      try {
+        const response = await fetch("/api/db/caretaker-data");
+        const result = await response.json();
+        if (result.success) {
+          setCaretakerData(result.data);
+        }
+      } catch (error) {
+        console.error("Error fetching caretaker data:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    fetchCaretakerData();
+  }, []);
 
   // Action: Create Task
   useCopilotAction({
@@ -60,6 +107,32 @@ function CaretakerDashboardContent() {
     },
   });
 
+  if (isLoading) {
+    return (
+      <SidebarProvider
+        style={
+          {
+            "--sidebar-width": "calc(var(--spacing) * 72)",
+            "--header-height": "calc(var(--spacing) * 12)",
+          } as React.CSSProperties
+        }
+      >
+        <AppSidebar variant="inset" />
+        <SidebarInset>
+          <SiteHeader />
+          <div className="flex-1 overflow-y-auto bg-linear-to-br from-slate-50 to-blue-50">
+            <div className="max-w-7xl mx-auto p-6 flex items-center justify-center min-h-screen">
+              <div className="text-center">
+                <div className="animate-spin h-12 w-12 border-4 border-blue-200 border-t-blue-600 rounded-full mx-auto mb-4" />
+                <p className="text-gray-600">Loading caretaker dashboard...</p>
+              </div>
+            </div>
+          </div>
+        </SidebarInset>
+      </SidebarProvider>
+    );
+  }
+
   return (
     <SidebarProvider
       style={
@@ -74,31 +147,33 @@ function CaretakerDashboardContent() {
         <SiteHeader />
         <div className="flex-1 overflow-y-auto bg-linear-to-br from-slate-50 to-blue-50">
           <div className="max-w-7xl mx-auto p-6 space-y-6">
-            {/* Main Grid */}
+            {/* Main Grid - 2x2 Layout */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Left Column */}
-              <div className="space-y-6">
-                <PatientProfileCard
-                  name={patientData.name}
-                  age={patientData.age}
-                  diagnosis={patientData.diagnosis}
-                  medSchedule={patientData.med_schedule}
-                  lastMedTime={patientData.last_med_time}
-                />
-                
-                <TaskList />
-              </div>
+              {/* Top Row: Patient Profile and Tasks */}
+              <PatientProfileCard
+                name={caretakerData?.profile.name || "Loading..."}
+                age={caretakerData?.profile.age || 0}
+                diagnosis={caretakerData?.profile.diagnosis || "Loading..."}
+                medSchedule={caretakerData?.profile.medications || []}
+                lastMedTime="Not recorded"
+              />
+              
+              <TaskList />
+            </div>
 
-              {/* Right Column */}
-              <div className="space-y-6">
-                <MemoryLogCard memories={memoryLog} />
-                
-                <HealthNotesCard notes={healthNotes} />
-              </div>
+            {/* Second Row: Conversation Memory and Medical Health Notes */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <MemoryLogCard 
+                memories={caretakerData?.memoryLogs.map(log => log.content) || []} 
+              />
+              
+              <MedicalHealthNotesCard 
+                notes={caretakerData?.healthNotes || []} 
+              />
             </div>
 
             {/* Instructions */}
-            <div className="bg-linear-to-r from-blue-50 to-purple-50 rounded-lg shadow-sm p-6 border border-blue-200">
+            <div className="bg-linear-to-r from-blue-50 to-purple-50 rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">
                 💡 Try These Commands:
               </h2>

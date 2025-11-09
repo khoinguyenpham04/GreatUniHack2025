@@ -152,5 +152,14 @@ VALUES
   (3, 1, 'Check patient vital signs at noon', 0),
   (4, 1, 'Give patient evening medication (Memantine 8pm)', 0),
   (5, 1, 'Assist with evening routine and prepare for bed', 0);
+
+-- Insert medical health notes for caretakers (scientific/clinical observations)
+INSERT OR IGNORE INTO health_notes (id, patient_id, note, severity)
+VALUES 
+  (1, 1, 'Patient shows mild short-term memory impairment. MMSE score: 24/30. Consistent with early-stage Alzheimer''s diagnosis. Continue current cholinesterase inhibitor regimen.', 'medium'),
+  (2, 1, 'Blood pressure reading: 142/88 mmHg (slightly elevated). Monitor for hypertension. Consider dietary sodium reduction and increased physical activity.', 'medium'),
+  (3, 1, 'Patient reports occasional difficulty with word-finding (anomia). Cognitive function stable compared to last assessment. No acute decline observed.', 'low'),
+  (4, 1, 'Medication adherence excellent. No adverse reactions to current Alzheimer''s medications (Donepezil 10mg, Memantine 10mg). Continue monitoring.', 'low'),
+  (5, 1, 'Patient expressed mild anxiety about upcoming family visits. Recommended calming techniques and maintaining consistent daily routine. No pharmacological intervention needed at this time.', 'low');
 `;
 
