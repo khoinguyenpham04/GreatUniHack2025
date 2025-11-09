@@ -31,6 +31,8 @@ import patientData from "@/lib/patient.json";
 import { Send, Mic, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
+import { DotSpinner } from 'ldrs/react';
+import 'ldrs/react/DotSpinner.css';
 
 function PatientDashboardContent() {
   const [inputMessage, setInputMessage] = useState("");
@@ -789,7 +791,13 @@ function PatientDashboardContent() {
                             aria-label="Send message"
                           >
                             {isSendingMessage ? (
-                              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                              <div className="flex items-center justify-center w-5 h-5">
+                              <DotSpinner
+                                size="20"
+                                speed="0.9"
+                                color="white"
+                              />
+                              </div>
                             ) : (
                               <Send className="w-5 h-5 text-white" />
                             )}
