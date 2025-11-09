@@ -37,13 +37,6 @@ function PatientDashboardContent() {
   const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Prompt suggestions
-  const promptSuggestions = [
-    "What are my tasks for today?",
-    "How am I feeling today?",
-    "Tell me about my memories",
-  ];
-
   // Fetch daily activities, health tips, and memory photos
   useEffect(() => {
     async function fetchPatientData() {
@@ -329,69 +322,6 @@ function PatientDashboardContent() {
     }
   };
 
-  // Handle prompt suggestion click
-  const handleSuggestionClick = async (suggestion: string) => {
-    if (isSendingMessage) return;
-    
-    setInputMessage(suggestion);
-    setIsSendingMessage(true);
-    
-    // Add user message to chat history
-    setChatHistory(prev => [...prev, { role: 'user', content: suggestion }]);
-    console.log("Sending suggestion:", suggestion);
-
-    try {
-      // Call patient graph API
-      const response = await fetch('/api/agent', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          input: suggestion,
-          workflow: 'patient'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      console.log('API response:', data);
-      
-      if (data.success && data.state) {
-        // Check for emergency flag
-        if (data.state.isEmergency) {
-          setIsEmergency(true);
-        }
-
-        // Update chat history with AI response
-        if (data.state.memoryLog && data.state.memoryLog.length > 0) {
-          const latestResponse = data.state.memoryLog[data.state.memoryLog.length - 1];
-          setChatHistory(prev => [...prev, { role: 'assistant', content: latestResponse }]);
-          addMemory(latestResponse);
-          
-          // Speak the assistant's response using TTS
-          await speakTextWithTTS(latestResponse);
-        }
-
-        // Refresh activities if they were updated
-        const activitiesResponse = await fetch('/api/db/patient-data');
-        const activitiesData = await activitiesResponse.json();
-        if (activitiesData.success) {
-          setDailyActivities(activitiesData.data.dailyActivities);
-        }
-      }
-    } catch (error) {
-      console.error('Error sending suggestion:', error);
-      const errorMsg = "Sorry, I couldn't process that right now. Please try again.";
-      setChatHistory(prev => [...prev, { role: 'assistant', content: errorMsg }]);
-      addMemory(errorMsg);
-    } finally {
-      setIsSendingMessage(false);
-      setInputMessage(""); // Clear input after sending
-    }
-  };
-
   const latestAssistantMessage = [...chatHistory]
     .reverse()
     .find((message) => message.role === 'assistant');
@@ -570,11 +500,9 @@ function PatientDashboardContent() {
         <SiteHeader />
         <div className="flex-1 flex flex-col h-screen bg-white">
           {/* Main Content - Always Visible - Blur when response is shown */}
-          <div
-            className={`flex-1 overflow-y-auto transition-all duration-300 ${
-              displayedAssistantMessage !== null && isAssistantMessageVisible ? "blur-lg" : "blur-0"
-            }`}
-          >
+          <div className={`flex-1 overflow-y-auto transition-all duration-300 ${
+            displayedAssistantMessage !== null && isAssistantMessageVisible ? 'blur-sm' : 'blur-0'
+          }`}>
             <div className={`flex min-h-full w-full flex-col px-6 ${
               selectedPhoto ? "justify-start py-4" : "justify-center py-10"
             }`}>
@@ -701,100 +629,97 @@ function PatientDashboardContent() {
 
           {/* Latest response & input */}
           {!selectedPhoto && (
-            <div className="fixed inset-x-0 bottom-0 z-20 pointer-events-none">
-              <div className="absolute inset-0 bg-gradient-to-t from-white/60 via-white/20 to-transparent backdrop-blur-3xl" />
-              <div className="relative mx-auto w-full max-w-3xl px-4 pb-4 space-y-3 pointer-events-auto">
-                {/* Assistant response bubble - appears at top of pill */}
-                {displayedAssistantMessage !== null && (
-                  <div
-                    className={`relative px-6 py-4 transition-all duration-300 ease-in-out max-w-2xl mx-auto w-full ${
-                      isAssistantMessageVisible ? "opacity-100 max-h-96" : "opacity-0 max-h-0"
-                    }`}
-                  >
-                    {/* Close button */}
-                    <button
-                      onClick={handleCloseMessage}
-                      className="absolute top-3 right-3 p-1.5 hover:bg-gray-200 rounded-full transition-colors"
-                      aria-label="Close message"
-                    >
-                      <X className="w-4 h-4 text-gray-500" />
-                    </button>
-                    
-                    <div className="space-y-3 pr-8">
-                      {displayedShowsTodayCard && (
-                        <div className="max-w-xl mx-auto">
-                          {renderTodayCard()}
+            <div className="mt-auto bg-white sticky bottom-0">
+              <div className="p-4">
+                <div className="max-w-3xl mx-auto">
+                  {/* Outer pill container */}
+                  <div className="bg-gray-50 rounded-4xl border border-gray-200 shadow-lg overflow-hidden">
+                    {/* Assistant response bubble - appears at top of pill */}
+                    {displayedAssistantMessage !== null && (
+                      <div
+                        className={`relative px-6 py-4 transition-all duration-300 ease-in-out ${
+                          isAssistantMessageVisible ? "opacity-100 max-h-96" : "opacity-0 max-h-0"
+                        }`}
+                      >
+                        {/* Close button */}
+                        <button
+                          onClick={handleCloseMessage}
+                          className="absolute top-3 right-3 p-1.5 hover:bg-gray-200 rounded-full transition-colors"
+                          aria-label="Close message"
+                        >
+                          <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                        
+                        <div className="space-y-3 pr-8">
+                          {displayedShowsTodayCard && (
+                            <div className="max-w-xl mx-auto">
+                              {renderTodayCard()}
+                            </div>
+                          )}
+                          <p className="text-sm text-gray-600 leading-relaxed text-center">
+                            {displayedAssistantMessage}
+                          </p>
+                          
+                          {/* Emergency Call 911 Button */}
+                          {isEmergency && (
+                            <div className="flex justify-center pt-2">
+                              <button
+                                onClick={handleCall999}
+                                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-lg transition-all duration-200 hover:shadow-xl animate-pulse"
+                              >
+                                <Phone className="w-5 h-5" />
+                                Call 999
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      )}
-                      <p className="text-sm text-gray-600 leading-relaxed text-center">
-                        {displayedAssistantMessage}
-                      </p>
-                      
-                      {/* Emergency Call 911 Button */}
-                      {isEmergency && (
-                        <div className="flex justify-center pt-2">
+                      </div>
+                    )}
+                    
+                    {/* Divider line when message is shown */}
+                    {displayedAssistantMessage !== null && isAssistantMessageVisible && (
+                      <div className="px-6">
+                        <div className="border-t border-gray-200" />
+                      </div>
+                    )}
+
+                    {/* Inner pill - chat input */}
+                    <div className="p-3">
+                      <form onSubmit={handleSubmit} className="relative">
+                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-3 shadow-sm border border-gray-300">
+                          <input
+                            type="text"
+                            value={inputMessage}
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            placeholder="What's on your mind?"
+                            disabled={isSendingMessage}
+                            className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
+                          />
                           <button
-                            onClick={handleCall999}
-                            className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-lg transition-all duration-200 hover:shadow-xl animate-pulse"
+                            type="button"
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                            aria-label="Voice input"
+                            disabled={isSendingMessage}
                           >
-                            <Phone className="w-5 h-5" />
-                            Call 999
+                            <Mic className="w-5 h-5 text-gray-500" />
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!inputMessage.trim() || isSendingMessage}
+                            className="p-2 bg-[#7777D7] hover:bg-[#6B6BD0] rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Send message"
+                          >
+                            {isSendingMessage ? (
+                              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <Send className="w-5 h-5 text-white" />
+                            )}
                           </button>
                         </div>
-                      )}
+                      </form>
                     </div>
                   </div>
-                )}
-
-                {/* Prompt suggestions */}
-                {!isSendingMessage && (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 justify-center max-w-2xl mx-auto px-4">
-                    {promptSuggestions.map((suggestion, index) => (
-                      <button
-                        key={index}
-                        onClick={() => handleSuggestionClick(suggestion)}
-                        className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-full hover:bg-gray-50 hover:border-gray-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed whitespace-nowrap overflow-hidden text-ellipsis"
-                        disabled={isSendingMessage}
-                      >
-                        {suggestion}
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {/* Inner pill - chat input */}
-                <form onSubmit={handleSubmit} className="relative max-w-2xl mx-auto w-full">
-                  <div className="flex items-center gap-2 rounded-full px-4 py-3 border border-gray-300 bg-transparent">
-                    <input
-                      type="text"
-                      value={inputMessage}
-                      onChange={(e) => setInputMessage(e.target.value)}
-                      placeholder="What's on your mind?"
-                      disabled={isSendingMessage}
-                      className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
-                    />
-                    <button
-                      type="button"
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-                      aria-label="Voice input"
-                      disabled={isSendingMessage}
-                    >
-                      <Mic className="w-5 h-5 text-gray-500" />
-                    </button>
-                    <button
-                      type="submit"
-                      disabled={!inputMessage.trim() || isSendingMessage}
-                      className="p-2 bg-[#7777D7] hover:bg-[#6B6BD0] rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                      aria-label="Send message"
-                    >
-                      {isSendingMessage ? (
-                        <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                      ) : (
-                        <Send className="w-5 h-5 text-white" />
-                      )}
-                    </button>
-                  </div>
-                </form>
+                </div>
               </div>
             </div>
           )}
