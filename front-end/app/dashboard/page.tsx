@@ -1,6 +1,23 @@
 "use client";
 
 import { AppSidebar } from "@/components/app-sidebar";
+
+// Speech Recognition API types
+declare global {
+  interface Window {
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
+  }
+}
+
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number;
+  results: SpeechRecognitionResultList;
+}
+
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string;
+}
 import { SiteHeader } from "@/components/site-header";
 import {
   SidebarInset,
@@ -31,6 +48,9 @@ function PatientDashboardContent() {
   const [displayedAssistantMessage, setDisplayedAssistantMessage] = useState<string | null>(null);
   const [isAssistantMessageVisible, setIsAssistantMessageVisible] = useState(false);
   const [displayedShowsTodayCard, setDisplayedShowsTodayCard] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [speechRecognition, setSpeechRecognition] = useState<any>(null);
+  const [currentAudio, setCurrentAudio] = useState<HTMLAudioElement | null>(null);
   const hideMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -69,11 +89,18 @@ function PatientDashboardContent() {
     };
   }, []);
 
-  // Cleanup on unmount - abort any pending requests
+  // Cleanup on unmount - abort any pending requests, stop speech recognition, and stop audio
   useEffect(() => {
     return () => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
+      }
+      if (speechRecognition) {
+        speechRecognition.stop();
+      }
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
       }
       if (hideMessageTimeoutRef.current) {
         clearTimeout(hideMessageTimeoutRef.current);
@@ -84,29 +111,128 @@ function PatientDashboardContent() {
         showMessageTimeoutRef.current = null;
       }
     };
-  }, []);
+  }, [speechRecognition, currentAudio]);
 
   async function speakTextWithTTS(text: string) {
-  try {
-    const res = await fetch("/api/text-to-speech", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text }),
-    });
+    try {
+      // Stop any currently playing audio
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        setCurrentAudio(null);
+      }
 
-    if (!res.ok) {
-      console.error("TTS request failed:", await res.text());
+      const res = await fetch("/api/text-to-speech", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+
+      if (!res.ok) {
+        console.error("TTS request failed:", await res.text());
+        return;
+      }
+
+      const audioBlob = await res.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      const audio = new Audio(audioUrl);
+
+      // Set up event listeners
+      audio.onended = () => {
+        setCurrentAudio(null);
+        // Clean up the blob URL
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      audio.onerror = () => {
+        setCurrentAudio(null);
+        URL.revokeObjectURL(audioUrl);
+      };
+
+      // Store the current audio reference
+      setCurrentAudio(audio);
+      audio.play();
+    } catch (err) {
+      console.error("Error playing TTS:", err);
+      setCurrentAudio(null);
+    }
+  }
+
+  // Voice recording functionality
+  const initializeSpeechRecognition = () => {
+    if (typeof window === 'undefined' || !window.SpeechRecognition && !window.webkitSpeechRecognition) {
+      console.error('Speech recognition not supported in this browser');
+      return null;
+    }
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+      console.log('Voice recognition started');
+      setIsRecording(true);
+    };
+
+    recognition.onresult = (event: SpeechRecognitionEvent) => {
+      let finalTranscript = '';
+      let interimTranscript = '';
+
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+
+      // Update input with both final and interim results for real-time feedback
+      setInputMessage(finalTranscript + interimTranscript);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+      console.error('Speech recognition error:', event.error);
+      setIsRecording(false);
+      if (event.error === 'not-allowed') {
+        alert('Microphone access denied. Please allow microphone access to use voice input.');
+      }
+    };
+
+    recognition.onend = () => {
+      console.log('Voice recognition ended');
+      setIsRecording(false);
+    };
+
+    return recognition;
+  };
+
+  const startVoiceRecording = async () => {
+    if (isRecording) {
+      // Stop recording
+      if (speechRecognition) {
+        speechRecognition.stop();
+      }
       return;
     }
 
-    const audioBlob = await res.blob();
-    const audioUrl = URL.createObjectURL(audioBlob);
-    const audio = new Audio(audioUrl);
-    audio.play();
-  } catch (err) {
-    console.error("Error playing TTS:", err);
-  }
-}
+    // Start recording
+    try {
+      const recognition = initializeSpeechRecognition();
+      if (recognition) {
+        setSpeechRecognition(recognition);
+        recognition.start();
+      } else {
+        alert('Voice recognition is not supported in your browser. Please use Chrome, Edge, or Safari.');
+      }
+    } catch (error) {
+      console.error('Error starting voice recognition:', error);
+      alert('Failed to start voice recognition. Please check your microphone permissions.');
+    }
+  };
 
 
   // Handle photo click - instant fade with loading
@@ -197,6 +323,13 @@ function PatientDashboardContent() {
 
   // Close assistant message
   const handleCloseMessage = () => {
+    // Stop any currently playing audio
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      setCurrentAudio(null);
+    }
+
     // Fade out and reset
     setIsAssistantMessageVisible(false);
     setTimeout(() => {
@@ -630,17 +763,24 @@ function PatientDashboardContent() {
                             type="text"
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
-                            placeholder="What's on your mind?"
-                            disabled={isSendingMessage}
+                            placeholder={isRecording ? "Listening..." : "What's on your mind?"}
+                            disabled={isSendingMessage || isRecording}
                             className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
                           />
                           <button
                             type="button"
-                            className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-                            aria-label="Voice input"
+                            onClick={startVoiceRecording}
+                            className={`p-2 rounded-full transition-all duration-200 disabled:opacity-50 ${
+                              isRecording
+                                ? 'bg-red-100 hover:bg-red-200 animate-pulse'
+                                : 'hover:bg-gray-100'
+                            }`}
+                            aria-label={isRecording ? "Stop voice recording" : "Start voice recording"}
                             disabled={isSendingMessage}
                           >
-                            <Mic className="w-5 h-5 text-gray-500" />
+                            <Mic className={`w-5 h-5 ${
+                              isRecording ? 'text-red-600' : 'text-gray-500'
+                            }`} />
                           </button>
                           <button
                             type="submit"

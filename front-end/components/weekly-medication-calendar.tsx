@@ -1,8 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Card } from "./ui/card";
 import { Pill } from "lucide-react";
+import { isSameDay, startOfWeek, addDays, format } from "date-fns";
+import {
+  CalendarProvider,
+  CalendarHeader,
+  CalendarBody,
+  CalendarItem,
+  CalendarDate,
+  CalendarDatePicker,
+  CalendarMonthPicker,
+  CalendarYearPicker,
+  CalendarDatePagination,
+  type Feature,
+  type Status,
+  useCalendarMonth,
+  useCalendarYear,
+} from "@/components/ui/shadcn-io/calendar";
 
 interface Medication {
   id: number;
@@ -20,9 +36,119 @@ interface DaySchedule {
   timeSlots: TimeSlot[];
 }
 
-export function WeeklyMedicationCalendar() {
+// Medication status for calendar
+const medicationStatus: Status = {
+  id: "medication",
+  name: "Medication",
+  color: "#10B981", // Green color for medications
+};
+
+// Custom Medication Tooltip Component
+function MedicationTooltip({ feature, children }: { feature: Feature; children: React.ReactNode }) {
+  const [isHovered, setIsHovered] = useState(false);
+
+  return (
+    <div
+      className="relative"
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      {children}
+
+      {/* Tooltip */}
+      {isHovered && (
+        <div
+          className="absolute z-50 bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg shadow-lg border border-gray-700 whitespace-nowrap transition-all duration-200 ease-in-out"
+          style={{
+            backdropFilter: 'blur(8px)',
+            background: 'rgba(17, 24, 39, 0.95)',
+          }}
+        >
+          {feature.name}
+          {/* Tooltip arrow */}
+          <div
+            className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"
+            style={{ borderTopColor: 'rgba(17, 24, 39, 0.95)' }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Custom Weekly Calendar Body Component
+function WeeklyCalendarBody({ features, children }: { features: Feature[], children: (props: { feature: Feature }) => React.ReactNode }) {
+  const [month] = useCalendarMonth();
+  const [year] = useCalendarYear();
+
+  // Calculate the week to display (first week of the selected month)
+  const firstDayOfMonth = new Date(year, month, 1);
+  const weekStart = startOfWeek(firstDayOfMonth, { weekStartsOn: 0 }); // Start on Sunday
+
+  const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
+
+  // Filter and sort features for the current week chronologically
+  const weekFeatures = useMemo(() => {
+    const result: { [day: number]: Feature[] } = {};
+    weekDays.forEach((day, index) => {
+      result[index] = features
+        .filter((feature) => isSameDay(new Date(feature.startAt), day))
+        .sort((a, b) => {
+          // Sort by time (earlier times first)
+          const timeA = new Date(a.startAt).getTime();
+          const timeB = new Date(b.startAt).getTime();
+          return timeA - timeB;
+        });
+    });
+    return result;
+  }, [features, weekDays]);
+
+  return (
+    <div className="grid grid-cols-7 gap-1 p-4 bg-gray-50">
+      {weekDays.map((day, index) => {
+        const dayFeatures = weekFeatures[index] || [];
+        const isCurrentMonth = day.getMonth() === month;
+
+        return (
+          <div
+            key={index}
+            className={`min-h-[120px] p-2 rounded-lg border ${
+              isCurrentMonth
+                ? "bg-white border-gray-200"
+                : "bg-gray-100 border-gray-300"
+            }`}
+          >
+            <div className="text-center mb-2">
+              <div className={`text-sm font-semibold ${
+                isCurrentMonth ? "text-gray-900" : "text-gray-500"
+              }`}>
+                {format(day, "EEE")}
+              </div>
+              <div className={`text-lg ${
+                isCurrentMonth ? "text-gray-900" : "text-gray-500"
+              }`}>
+                {format(day, "d")}
+              </div>
+            </div>
+            <div className="space-y-1">
+              {dayFeatures.map((feature) => (
+                <MedicationTooltip key={feature.id} feature={feature}>
+                  {children({ feature })}
+                </MedicationTooltip>
+              ))}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MedicationCalendarContent() {
   const [schedule, setSchedule] = useState<DaySchedule[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMonth] = useCalendarMonth();
+  const [selectedYear] = useCalendarYear();
 
   useEffect(() => {
     async function fetchSchedule() {
@@ -42,6 +168,58 @@ export function WeeklyMedicationCalendar() {
     fetchSchedule();
   }, []);
 
+  // Transform medication schedule into calendar features
+  const medicationFeatures = useMemo(() => {
+    const features: Feature[] = [];
+    const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+    schedule.forEach((daySchedule) => {
+      const dayIndex = daysOfWeek.indexOf(daySchedule.day);
+      if (dayIndex === -1) return;
+
+      daySchedule.timeSlots.forEach((timeSlot) => {
+        timeSlot.medications.forEach((medication) => {
+          // Calculate the date for this day in the selected month
+          const firstDayOfMonth = new Date(selectedYear, selectedMonth, 1);
+          const weekStart = startOfWeek(firstDayOfMonth, { weekStartsOn: 0 }); // Start on Sunday
+          const targetDate = addDays(weekStart, dayIndex);
+
+          // Set the time
+          const [hours, minutes] = timeSlot.time.split(':').map(Number);
+          targetDate.setHours(hours, minutes, 0, 0);
+
+          // Create feature for this medication
+          features.push({
+            id: `${medication.id}-${daySchedule.day}-${timeSlot.time}-${selectedMonth}-${selectedYear}`,
+            name: `${medication.name} - ${medication.dosage} at ${timeSlot.time}`,
+            startAt: targetDate,
+            endAt: targetDate, // Same start and end for point-in-time events
+            status: medicationStatus,
+          });
+        });
+      });
+    });
+
+    return features;
+  }, [schedule, selectedMonth, selectedYear]);
+
+  // Calculate year range for the year picker
+  const { earliestYear, latestYear } = useMemo(() => {
+    if (medicationFeatures.length === 0) {
+      const currentYear = new Date().getFullYear();
+      return { earliestYear: currentYear, latestYear: currentYear };
+    }
+
+    const years = medicationFeatures
+      .flatMap((feature) => [feature.startAt.getFullYear(), feature.endAt.getFullYear()])
+      .sort((a, b) => a - b);
+
+    return {
+      earliestYear: years[0],
+      latestYear: years[years.length - 1],
+    };
+  }, [medicationFeatures]);
+
   if (isLoading) {
     return (
       <Card className="p-6">
@@ -53,18 +231,6 @@ export function WeeklyMedicationCalendar() {
     );
   }
 
-  // Generate 24 hours
-  const hours = Array.from({ length: 24 }, (_, i) => {
-    const hour = i.toString().padStart(2, '0');
-    return `${hour}:00`;
-  });
-
-  // Helper to check if a medication exists at a specific time for a day
-  const getMedicationsAtTime = (day: DaySchedule, time: string) => {
-    const slot = day.timeSlots.find(s => s.time === time);
-    return slot?.medications || [];
-  };
-
   return (
     <Card className="p-6 bg-linear-to-br from-blue-50 to-indigo-50">
       <div className="mb-6">
@@ -74,105 +240,47 @@ export function WeeklyMedicationCalendar() {
           </div>
           <h2 className="text-2xl font-bold text-gray-900">Weekly Medication Schedule</h2>
         </div>
-        <p className="text-sm text-gray-600 ml-11">Patient: Mary Thompson - 24 Hour Timeline</p>
+        <p className="text-sm text-gray-600 ml-11">Patient: Mary Thompson - Weekly Calendar View</p>
       </div>
 
-      {/* Calendar Grid */}
-      <div className="overflow-x-auto">
-        <div className="min-w-[1200px]">
-          {/* Header with Days */}
-          <div className="grid grid-cols-8 gap-2 mb-4">
-            {/* Time column header */}
-            <div className="text-center p-3 bg-gray-700 text-white rounded-lg shadow-sm font-semibold">
-              Time
-            </div>
-            {/* Day headers */}
-            {schedule.map((day) => (
-              <div
-                key={day.day}
-                className="text-center p-3 bg-white rounded-lg shadow-sm border-2 border-blue-200"
-              >
-                <div className="font-bold text-gray-900 text-sm">
-                  {day.day.substring(0, 3).toUpperCase()}
-                </div>
-                <div className="text-xs text-gray-600 mt-1">
-                  {day.day}
-                </div>
-              </div>
-            ))}
-          </div>
+      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <CalendarDate>
+          <CalendarDatePicker>
+            <CalendarMonthPicker />
+            <CalendarYearPicker end={latestYear} start={earliestYear} />
+          </CalendarDatePicker>
+          <CalendarDatePagination />
+        </CalendarDate>
+        <WeeklyCalendarBody features={medicationFeatures}>
+          {({ feature }) => (
+            <CalendarItem
+              key={feature.id}
+              feature={feature}
+              className="text-xs bg-green-50 border border-green-200 rounded px-1 py-0.5 mb-0.5"
+            />
+          )}
+        </WeeklyCalendarBody>
+      </div>
 
-          {/* 24-Hour Timeline */}
-          <div className="space-y-1">
-            {hours.map((hour) => (
-              <div key={hour} className="grid grid-cols-8 gap-2">
-                {/* Time label */}
-                <div className="flex items-center justify-center p-2 bg-gray-100 rounded border border-gray-300">
-                  <span className="text-xs font-semibold text-gray-700">
-                    {hour}
-                  </span>
-                </div>
-
-                {/* Day columns */}
-                {schedule.map((day) => {
-                  const medications = getMedicationsAtTime(day, hour);
-                  const hasMeds = medications.length > 0;
-
-                  return (
-                    <div
-                      key={`${day.day}-${hour}`}
-                      className={`relative min-h-[50px] p-2 rounded border transition-all ${
-                        hasMeds
-                          ? "bg-blue-500 border-blue-600 shadow-md"
-                          : "bg-white border-gray-200"
-                      }`}
-                    >
-                      {hasMeds && (
-                        <div className="space-y-1">
-                          {medications.map((med) => (
-                            <div
-                              key={med.id}
-                              className="bg-white rounded px-2 py-1 shadow-sm"
-                            >
-                              <div className="flex items-start gap-1">
-                                <Pill className="w-3 h-3 text-blue-600 mt-0.5 shrink-0" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-bold text-gray-900 truncate">
-                                    {med.name}
-                                  </p>
-                                  <p className="text-xs text-gray-600">
-                                    {med.dosage}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            ))}
-          </div>
-
-          {/* Legend */}
-          <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-600 bg-white p-4 rounded-lg">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-blue-500 border border-blue-600 rounded shadow-sm" />
-              <span className="font-medium">Medication Time</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 bg-white border border-gray-200 rounded" />
-              <span>No Medication</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <Pill className="w-4 h-4 text-blue-600" />
-              <span>Medication Details</span>
-            </div>
-          </div>
+      {/* Legend */}
+      <div className="mt-6 flex items-center justify-center gap-6 text-xs text-gray-600 bg-white p-4 rounded-lg border border-gray-200">
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 bg-green-500 rounded-full" />
+          <span className="font-medium">Medication Scheduled</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <Pill className="w-4 h-4 text-green-600" />
+          <span>Medication Details</span>
         </div>
       </div>
     </Card>
+  );
+}
+
+export function WeeklyMedicationCalendar() {
+  return (
+    <CalendarProvider>
+      <MedicationCalendarContent />
+    </CalendarProvider>
   );
 }
