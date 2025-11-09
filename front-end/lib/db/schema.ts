@@ -143,5 +143,14 @@ VALUES
   (2, 1, '/linda-and-her-bestfriend.jpg', 'Linda brought her best friend over after school. They were inseparable.'),
   (3, 1, '/mary-and-her-daughter-Stacy-and-Linda-her-grandchild.jpg', 'Sunday brunch with Stacy and Linda. My two favorite girls.'),
   (4, 1, '/mary-neighbor-with-their-grandchild.png', 'The kids played in the garden all afternoon. Their laughter filled the house.');
+
+-- Insert caretaker tasks (medical/care tasks for healthcare professionals)
+INSERT OR IGNORE INTO tasks (id, patient_id, description, completed)
+VALUES 
+  (1, 1, 'Give patient morning medication (Donepezil 8am)', 0),
+  (2, 1, 'Help patient change clothes after breakfast', 0),
+  (3, 1, 'Check patient vital signs at noon', 0),
+  (4, 1, 'Give patient evening medication (Memantine 8pm)', 0),
+  (5, 1, 'Assist with evening routine and prepare for bed', 0);
 `;
 
