@@ -11,7 +11,7 @@ import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import patientData from "@/lib/patient.json";
-import { Send, Mic, X, Phone } from "lucide-react";
+import { Send, Mic, X, Phone, Trash2 } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 
@@ -32,6 +32,7 @@ function PatientDashboardContent() {
   const [isAssistantMessageVisible, setIsAssistantMessageVisible] = useState(false);
   const [displayedShowsTodayCard, setDisplayedShowsTodayCard] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
+  const [crossedOutTasks, setCrossedOutTasks] = useState<Set<number>>(new Set());
   const hideMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -409,10 +410,29 @@ function PatientDashboardContent() {
       if (response.ok) {
         // Remove from local state immediately for smooth UI
         setDailyActivities(prev => prev.filter(a => a.id !== activityId));
+        // Also remove from crossed-out set
+        setCrossedOutTasks(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(activityId);
+          return newSet;
+        });
       }
     } catch (error) {
       console.error('Error removing activity:', error);
     }
+  };
+
+  // Handle task click to cross out (visual only)
+  const handleTaskClick = (activityId: number) => {
+    setCrossedOutTasks(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(activityId)) {
+        newSet.delete(activityId);
+      } else {
+        newSet.add(activityId);
+      }
+      return newSet;
+    });
   };
 
   const renderTodayCard = () => (
@@ -422,24 +442,40 @@ function PatientDashboardContent() {
         <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
       </div>
       <div className="divide-y divide-gray-100">
-        {dailyActivities.map((activity) => (
-          <div
-            key={activity.id}
-            className="group flex items-center gap-3 px-3 py-1.5 hover:bg-[#f0f0f0] transition-colors cursor-pointer"
-          >
-            <input
-              type="checkbox"
-              onChange={() => handleActivityCheckbox(activity.id)}
-              className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-            />
-            <p className="m-0 flex-1 text-sm font-medium text-gray-900">
-              {activity.activity}
-            </p>
-            {activity.icon && (
-              <span className="shrink-0 text-sm opacity-60">{activity.icon}</span>
-            )}
-          </div>
-        ))}
+        {dailyActivities.map((activity) => {
+          const isCrossedOut = crossedOutTasks.has(activity.id);
+          return (
+            <div
+              key={activity.id}
+              className="group flex items-center gap-3 px-3 py-1.5 hover:bg-[#f0f0f0] transition-colors"
+            >
+              {/* Bullet point */}
+              <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-black" />
+              
+              {/* Task text - clickable for cross-out */}
+              <p 
+                onClick={() => handleTaskClick(activity.id)}
+                className={`m-0 flex-1 text-sm font-medium text-gray-900 cursor-pointer transition-all ${
+                  isCrossedOut ? 'line-through opacity-50' : ''
+                }`}
+              >
+                {activity.activity}
+              </p>
+              
+              {/* Delete bin icon */}
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleActivityCheckbox(activity.id);
+                }}
+                className="shrink-0 p-1 hover:bg-red-100 rounded transition-colors opacity-0 group-hover:opacity-100"
+                aria-label="Delete task"
+              >
+                <Trash2 className="w-3.5 h-3.5 text-red-600" />
+              </button>
+            </div>
+          );
+        })}
         {dailyActivities.length === 0 && (
           <div className="px-3 py-1.5">
             <p className="m-0 text-sm text-gray-500">No tasks for today</p>
