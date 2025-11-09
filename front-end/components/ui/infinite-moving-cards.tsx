@@ -72,46 +72,48 @@ export const InfiniteMovingCards = ({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className={cn(
-        "scroller relative z-20 max-w-7xl overflow-hidden mask-[linear-gradient(to_right,transparent,white_20%,white_80%,transparent)] group",
-        className,
-      )}
-    >
-      <ul
-        ref={scrollerRef}
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
         className={cn(
-          "flex w-max min-w-full shrink-0 flex-nowrap gap-4 py-4 animate-scroll",
+          "scroller relative z-20 max-w-7xl overflow-hidden mask-[linear-gradient(to_right,transparent,white_20%,white_80%,transparent)] group",
+          className,
         )}
       >
-        {duplicatedItems.map((item, idx) => (
-          <li
-            className="relative w-[350px] max-w-full shrink-0 rounded-2xl md:w-[450px] group"
-            key={`${item.src}-${idx}`}
-          >
-            <div className="relative aspect-video w-full overflow-hidden rounded-2xl">
-              <Image
-                src={item.src}
-                alt={item.alt}
-                fill
-                className="object-cover transition-all group-hover:brightness-75"
-              />
-              
-              {/* Memorise Button - Shows on Hover */}
-              <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-200">
-                <button
-                  onClick={() => !disabled && onImageClick?.(item)}
-                  disabled={disabled}
-                  className="px-6 py-3 bg-white text-gray-900 rounded-full font-medium shadow-lg hover:scale-105 transition-transform disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Memorise
-                </button>
+        <ul
+          ref={scrollerRef}
+          className={cn(
+            "flex w-max min-w-full shrink-0 flex-nowrap gap-4 animate-scroll",
+          )}
+        >
+          {duplicatedItems.map((item, idx) => (
+            <li
+              className="group relative w-[260px] max-w-full shrink-0 sm:w-[300px] md:w-[340px] lg:w-[380px]"
+              key={`${item.src}-${idx}`}
+            >
+              <div className="relative aspect-[16/9] w-full overflow-hidden rounded-2xl">
+                <Image
+                  src={item.src}
+                  alt={item.alt}
+                  fill
+                  className="object-cover transition-all group-hover:brightness-75"
+                />
+
+                {/* Memorise Button - Shows on Hover */}
+                <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-200 group-hover:opacity-100">
+                  <button
+                    onClick={() => !disabled && onImageClick?.(item)}
+                    disabled={disabled}
+                    className="rounded-full bg-white px-6 py-3 font-medium text-gray-900 shadow-lg transition-transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Recall
+                  </button>
+                </div>
               </div>
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 };

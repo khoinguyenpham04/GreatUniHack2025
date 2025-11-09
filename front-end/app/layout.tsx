@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Dementia Companion",
-  description: "AI-powered assistant for dementia patients",
+  title: "Memoral",
+  description: "A personal memory companion",
 };
 
 export default function RootLayout({

@@ -270,149 +270,155 @@ function PatientDashboardContent() {
         <SiteHeader />
         <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
           <div className="flex-1 overflow-y-auto">
-            <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
-              {/* Greeting Header - Only show when no photo is selected */}
-              {!selectedPhoto && (
+            <div
+              className={`flex min-h-full w-full flex-col px-6 ${
+                selectedPhoto ? "justify-start py-4" : "justify-center py-10"
+              }`}
+            >
+              <div className="mx-auto w-full max-w-4xl space-y-4">
+                {/* Greeting Header */}
                 <div className="py-2 text-center">
-                  <h1 className="text-2xl font-light text-gray-900">
+                  <h1 className="text-4xl font-light text-gray-900">
                     Hey, {patientData.name.split(' ')[0]}
                   </h1>
                 </div>
-              )}
 
-              {/* Photo Detail View */}
-              {selectedPhoto && (
-                <div className="max-w-3xl mx-auto">
-                  {isLoadingMemory ? (
-                    /* Loading State */
-                    <div className="animate-in fade-in duration-200 flex flex-col items-center justify-center min-h-[400px] space-y-6">
-                      <div className="relative">
-                        <div className="animate-spin h-16 w-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
+                {/* Photo Detail View */}
+                {selectedPhoto && (
+                  <div className="max-w-3xl mx-auto">
+                    {isLoadingMemory ? (
+                      /* Loading State */
+                      <div className="animate-in fade-in duration-200 flex flex-col items-center justify-center min-h-[400px] space-y-6">
+                        <div className="relative">
+                          <div className="animate-spin h-16 w-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
+                        </div>
+                        <div className="text-center space-y-2">
+                          <p className="text-lg font-medium text-gray-900">Remembering...</p>
+                          <p className="text-sm text-gray-500">Loading your memory</p>
+                        </div>
                       </div>
-                      <div className="text-center space-y-2">
-                        <p className="text-lg font-medium text-gray-900">Remembering...</p>
-                        <p className="text-sm text-gray-500">Loading your memory</p>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Memory Detail */
-                    <div className="animate-in fade-in duration-500 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                      {/* Photo */}
-                      <div className="relative aspect-video w-full bg-gray-100">
-                        <img
-                          src={selectedPhoto.src}
-                          alt={selectedPhoto.alt}
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      
-                      {/* Memory Context */}
-                      <div className="p-8 space-y-6">
-                        <div className="space-y-4">
-                          <p className="text-lg text-gray-600 leading-relaxed text-center">
-                            {photoMemoryContext}
-                          </p>
+                    ) : (
+                      /* Memory Detail */
+                      <div className="animate-in fade-in duration-500 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                        {/* Photo */}
+                        <div className="relative aspect-video w-full bg-gray-100">
+                          <img
+                            src={selectedPhoto.src}
+                            alt={selectedPhoto.alt}
+                            className="w-full h-full object-cover"
+                          />
                         </div>
                         
-                        <div className="flex justify-center">
-                          <button
-                            onClick={handleClosePhoto}
-                            className="px-8 py-3 bg-gray-100 text-gray-900 rounded-full font-medium hover:bg-gray-200 transition-colors"
-                          >
-                            Back to Activities
-                          </button>
+                        {/* Memory Context */}
+                        <div className="p-8 space-y-6">
+                          <div className="space-y-4">
+                            <p className="text-lg text-gray-600 leading-relaxed text-center">
+                              {photoMemoryContext}
+                            </p>
+                          </div>
+                          
+                          <div className="flex justify-center">
+                            <button
+                              onClick={handleClosePhoto}
+                              className="px-8 py-3 bg-gray-100 text-gray-900 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                            >
+                              Back to Activities
+                            </button>
+                          </div>
                         </div>
                       </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Main Grid - Hidden when photo is selected */}
+                {!selectedPhoto && (
+                  <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                  {/* Daily Tasks */}
+                  <div className="rounded-lg border border-gray-200 bg-white">
+                    <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
+                      <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+                      <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
                     </div>
-                  )}
-                </div>
-              )}
-
-              {/* Main Grid - Hidden when photo is selected */}
-              {!selectedPhoto && (
-                <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-3xl mx-auto">
-                {/* Daily Tasks */}
-                <div className="rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
-                    <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
-                    <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
+                    <div className="divide-y divide-gray-100">
+                      {dailyActivities.map((activity) => (
+                        <div 
+                          key={activity.id} 
+                          className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors cursor-pointer"
+                        >
+                          <input
+                            type="checkbox"
+                            className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0"
+                          />
+                          <p className="m-0 flex-1 text-sm font-medium text-gray-900">
+                            {activity.activity}
+                          </p>
+                          {activity.icon && (
+                            <span className="shrink-0 text-sm opacity-60">{activity.icon}</span>
+                          )}
+                        </div>
+                      ))}
+                      {dailyActivities.length === 0 && (
+                        <div className="px-3 py-1.5">
+                          <p className="m-0 text-sm text-gray-500">No tasks for today</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                  <div className="divide-y divide-gray-100">
-                    {dailyActivities.map((activity) => (
-                      <div 
-                        key={activity.id} 
-                        className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors cursor-pointer"
-                      >
-                        <input
-                          type="checkbox"
-                          className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0"
+
+                  {/* Health Notes */}
+                  <div className="rounded-lg border border-gray-200 bg-white">
+                    <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
+                      <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
+                      <h2 className="m-0 text-sm font-medium text-gray-900">Health Notes</h2>
+                    </div>
+                    <div className="divide-y divide-gray-100">
+                      {healthTips.map((tip) => (
+                        <div 
+                          key={tip.id} 
+                          className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors"
+                        >
+                          <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" />
+                          <p className="m-0 flex-1 text-sm text-gray-700">
+                            {tip.tip}
+                          </p>
+                          {tip.icon && (
+                            <span className="shrink-0 text-sm opacity-60">{tip.icon}</span>
+                          )}
+                        </div>
+                      ))}
+                      {healthTips.length === 0 && (
+                        <div className="px-3 py-1.5">
+                          <p className="m-0 text-sm text-gray-500">No health notes</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                )}
+
+                {/* Photo Carousel - Hidden when photo is selected */}
+                {!selectedPhoto && memoryPhotos.length > 0 && (
+                  <div className="animate-in fade-in duration-300">
+                    <div className="mx-auto max-w-2xl">
+                      <div className="relative h-[200px] md:h-[220px] overflow-hidden rounded-2xl bg-white mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
+                        <InfiniteMovingCards
+                          items={memoryPhotos.map(photo => ({
+                            src: photo.photo_path,
+                            alt: photo.memory_description
+                          }))}
+                          direction="right"
+                          speed={carouselSpeed}
+                          pauseOnHover={true}
+                          disabled={isLoadingMemory}
+                          className="mask-none"
+                          onImageClick={handlePhotoClick}
                         />
-                        <p className="m-0 flex-1 text-sm font-medium text-gray-900">
-                          {activity.activity}
-                        </p>
-                        {activity.icon && (
-                          <span className="shrink-0 text-sm opacity-60">{activity.icon}</span>
-                        )}
                       </div>
-                    ))}
-                    {dailyActivities.length === 0 && (
-                      <div className="px-3 py-1.5">
-                        <p className="m-0 text-sm text-gray-500">No tasks for today</p>
-                      </div>
-                    )}
+                    </div>
                   </div>
-                </div>
-
-                {/* Health Notes */}
-                <div className="rounded-lg border border-gray-200 bg-white">
-                  <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
-                    <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
-                    <h2 className="m-0 text-sm font-medium text-gray-900">Health Notes</h2>
-                  </div>
-                  <div className="divide-y divide-gray-100">
-                    {healthTips.map((tip) => (
-                      <div 
-                        key={tip.id} 
-                        className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors"
-                      >
-                        <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" />
-                        <p className="m-0 flex-1 text-sm text-gray-700">
-                          {tip.tip}
-                        </p>
-                        {tip.icon && (
-                          <span className="shrink-0 text-sm opacity-60">{tip.icon}</span>
-                        )}
-                      </div>
-                    ))}
-                    {healthTips.length === 0 && (
-                      <div className="px-3 py-1.5">
-                        <p className="m-0 text-sm text-gray-500">No health notes</p>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
-              )}
-
-              {/* Photo Carousel - Hidden when photo is selected */}
-              {!selectedPhoto && memoryPhotos.length > 0 && (
-                <div className="animate-in fade-in duration-300 max-w-3xl mx-auto">
-                  <div className="h-[200px] md:h-[220px] rounded-lg flex flex-col antialiased bg-white items-center justify-center relative overflow-hidden mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
-                    <InfiniteMovingCards
-                      items={memoryPhotos.map(photo => ({
-                        src: photo.photo_path,
-                        alt: photo.memory_description
-                      }))}
-                      direction="right"
-                      speed={carouselSpeed}
-                      pauseOnHover={true}
-                      disabled={isLoadingMemory}
-                      className="mask-none"
-                      onImageClick={handlePhotoClick}
-                    />
-                  </div>
-                </div>
-              )}
             </div>
           </div>
 

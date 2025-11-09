@@ -108,7 +108,7 @@ Input: "Add call the doctor to my list"
 ### Photo Memory Feature
 
 **Features**:
-- ✅ Hover shows "Memorise" button
+- ✅ Hover shows "Recall" button
 - ✅ Click triggers instant fade-out
 - ✅ Loading spinner: "Remembering..."
 - ✅ AI generates memory context
@@ -291,7 +291,7 @@ Expected:
 
 #### 4. Photo Memory
 ```bash
-Click: Photo → "Memorise"
+Click: Photo → "Recall"
 Expected:
 - ✅ Instant fade-out
 - ✅ Loading spinner
