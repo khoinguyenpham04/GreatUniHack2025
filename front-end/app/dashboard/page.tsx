@@ -293,6 +293,9 @@ function PatientDashboardContent() {
           const latestResponse = data.state.memoryLog[data.state.memoryLog.length - 1];
           setChatHistory(prev => [...prev, { role: 'assistant', content: latestResponse }]);
           addMemory(latestResponse);
+          
+          // Speak the assistant's response using TTS
+          await speakTextWithTTS(latestResponse);
         }
 
         // Refresh activities if they were updated
