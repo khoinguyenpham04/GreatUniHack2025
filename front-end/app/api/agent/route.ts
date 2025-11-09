@@ -1,6 +1,6 @@
 import { patientGraph, caretakerGraph } from "@/lib/graph";
 import patient from "@/lib/patient.json";
-import { PatientState } from "@/lib/types";
+import { PatientState, MedicationSchema } from "@/lib/types";
 
 export async function POST(req: Request) {
   try {
@@ -16,12 +16,21 @@ export async function POST(req: Request) {
       );
     }
 
+    // Transform medication objects to strings for agent consumption
+    const medScheduleStrings = (patient.med_schedule ?? []).map((med: any) => {
+      // Validate the medication object
+      const parsed = MedicationSchema.parse(med);
+      // Format as "Medication Dosage at Time (Days)"
+      const daysStr = parsed.days.length === 7 ? "Daily" : parsed.days.join(", ");
+      return `${parsed.medication} ${parsed.dosage} at ${parsed.times.join(", ")} (${daysStr})`;
+    });
+
     const initialState: PatientState = {
       // profile fields
       name: patient.name,
       age: patient.age,
       diagnosis: patient.diagnosis,
-      med_schedule: patient.med_schedule ?? [],
+      med_schedule: medScheduleStrings,
       // dynamic state
       input: userInput,
       memoryLog: [],

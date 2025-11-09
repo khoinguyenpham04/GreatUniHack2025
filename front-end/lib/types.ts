@@ -1,11 +1,21 @@
 import { z } from "zod";
 
+// Medication object schema
+export const MedicationSchema = z.object({
+  medication: z.string(),
+  dosage: z.string(),
+  days: z.array(z.string()),
+  times: z.array(z.string()),
+});
+
+export type Medication = z.infer<typeof MedicationSchema>;
+
 export const PatientStateSchema = z.object({
   // 🔹 Patient profile information (formerly PatientProfile)
   name: z.string(),
   age: z.number(),
   diagnosis: z.string(),
-  med_schedule: z.array(z.string()),
+  med_schedule: z.array(z.string()), // Agents still use string format internally
 
   // 🔹 Dynamic / evolving state fields
   input: z.string(),
