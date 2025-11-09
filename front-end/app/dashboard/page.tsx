@@ -11,7 +11,7 @@ import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import patientData from "@/lib/patient.json";
-import { Send, Mic } from "lucide-react";
+import { Send, Mic, X } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 
@@ -193,6 +193,18 @@ function PatientDashboardContent() {
     setIsLoadingMemory(false);
     
     console.log('State reset complete');
+  };
+
+  // Close assistant message
+  const handleCloseMessage = () => {
+    // Fade out and reset
+    setIsAssistantMessageVisible(false);
+    setTimeout(() => {
+      setDisplayedAssistantMessage(null);
+      setDisplayedShowsTodayCard(false);
+      // Clear the chat history to prevent re-triggering
+      setChatHistory([]);
+    }, 300);
   };
 
   // Make patient data readable to CopilotKit
@@ -556,11 +568,20 @@ function PatientDashboardContent() {
                     {/* Assistant response bubble - appears at top of pill */}
                     {displayedAssistantMessage !== null && (
                       <div
-                        className={`px-6 py-4 transition-all duration-300 ease-in-out ${
+                        className={`relative px-6 py-4 transition-all duration-300 ease-in-out ${
                           isAssistantMessageVisible ? "opacity-100 max-h-96" : "opacity-0 max-h-0"
                         }`}
                       >
-                        <div className="space-y-3">
+                        {/* Close button */}
+                        <button
+                          onClick={handleCloseMessage}
+                          className="absolute top-3 right-3 p-1.5 hover:bg-gray-200 rounded-full transition-colors"
+                          aria-label="Close message"
+                        >
+                          <X className="w-4 h-4 text-gray-500" />
+                        </button>
+                        
+                        <div className="space-y-3 pr-8">
                           {displayedShowsTodayCard && (
                             <div className="max-w-xl mx-auto">
                               {renderTodayCard()}
