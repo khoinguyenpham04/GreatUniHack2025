@@ -4,7 +4,7 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from "@copilotkit/runtime";
 import { NextRequest } from "next/server";
-import { patientGraph } from "@/lib/graph";
+import { caretakerGraph } from "@/lib/graph";
 import { getPatientState, TaskDB, HealthDB, PatientDB } from "@/lib/db";
 import { PatientState } from "@/lib/types";
 
@@ -32,10 +32,10 @@ const runtime = new CopilotRuntime({
         const currentState = getPatientState(patientId);
         currentState.input = `Create task: ${taskDescription}`;
         
-        // Run through LangGraph agents
-        const result = await patientGraph.invoke(currentState);
+        // Run through LangGraph caretaker agents (uses tasks table, not daily_activities)
+        const result = await caretakerGraph.invoke(currentState);
         
-        // Tasks are automatically saved to DB by taskAgent
+        // Tasks are automatically saved to DB by caretaker taskAgent (tasks table)
         const tasks = TaskDB.getActive(patientId);
         
         return {
@@ -67,10 +67,10 @@ const runtime = new CopilotRuntime({
         currentState.input = symptom;
         currentState.routeDecision = "health";
         
-        // Run through LangGraph agents
-        const result = await patientGraph.invoke(currentState);
+        // Run through LangGraph caretaker agents
+        const result = await caretakerGraph.invoke(currentState);
         
-        // Health notes are automatically saved to DB by healthAgent
+        // Health notes are automatically saved to DB by caretaker healthAgent
         const healthNotes = HealthDB.getRecent(patientId, 10);
         
         return {

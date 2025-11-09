@@ -218,8 +218,8 @@ export default function CaretakerPage() {
           <CopilotSidebar
             defaultOpen={false}
             labels={{
-              title: "🧠 AI Companion",
-              initial: `Hello! I'm your AI companion assistant powered by a multi-agent system.\n\nI can help you with:\n• Creating tasks and reminders\n• Tracking health symptoms\n• Remembering conversations\n• Managing your medication schedule\n\nHow can I help you today?`,
+              title: "👩‍⚕️ Care Companion",
+              initial: `Hello! I'm your AI care assistant, here to help you manage and understand your patient.\n\nI can assist you with:\n• Reviewing patient health updates and notes\n• Summarizing recent activities or behavior changes\n• Setting reminders for medication or appointments\n• Answering questions about the patient’s history and routines\n\nHow would you like to assist your patient today?`,
             }}
           >
             <CaretakerDashboardContent />

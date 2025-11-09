@@ -385,6 +385,24 @@ function PatientDashboardContent() {
     shouldShowTodayCard,
   ]);
 
+  // Handle activity checkbox click
+  const handleActivityCheckbox = async (activityId: number) => {
+    try {
+      const response = await fetch('/api/db/daily-activities', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ activityId }),
+      });
+
+      if (response.ok) {
+        // Remove from local state immediately for smooth UI
+        setDailyActivities(prev => prev.filter(a => a.id !== activityId));
+      }
+    } catch (error) {
+      console.error('Error removing activity:', error);
+    }
+  };
+
   const renderTodayCard = () => (
     <div className="rounded-lg border border-gray-200 bg-[#fbfbfb] overflow-hidden text-left">
       <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
@@ -399,7 +417,8 @@ function PatientDashboardContent() {
           >
             <input
               type="checkbox"
-              className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0"
+              onChange={() => handleActivityCheckbox(activity.id)}
+              className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
             />
             <p className="m-0 flex-1 text-sm font-medium text-gray-900">
               {activity.activity}
