@@ -15,6 +15,7 @@ import { TaskList } from "@/components/task-list";
 import { PatientProfileCard } from "@/components/patient-profile-card";
 import { MedicalHealthNotesCard } from "@/components/medical-health-notes-card";
 import { MemoryLogCard } from "@/components/memory-log-card";
+import { WeeklyMedicationCalendar } from "@/components/weekly-medication-calendar";
 import { useCopilotAction } from "@copilotkit/react-core";
 import { useEffect, useState } from "react";
 
@@ -49,6 +50,9 @@ function CaretakerDashboardContent() {
   const { memoryLog, healthNotes, addMemory, addHealthNote } = usePatientState();
   const [caretakerData, setCaretakerData] = useState<CaretakerData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+
+  const toggleCalendar = () => setIsCalendarOpen(prev => !prev);
 
   // Fetch caretaker data from API
   useEffect(() => {
@@ -158,6 +162,8 @@ function CaretakerDashboardContent() {
                 diagnosis={caretakerData?.profile.diagnosis || "Loading..."}
                 medSchedule={caretakerData?.profile.medications || []}
                 lastMedTime="Not recorded"
+                onToggleCalendar={toggleCalendar}
+                isCalendarOpen={isCalendarOpen}
               />
               
               <TaskList />
@@ -174,8 +180,15 @@ function CaretakerDashboardContent() {
               />
             </div>
 
+            {/* Weekly Medication Calendar - Collapsible */}
+            <div className={`overflow-hidden transition-all duration-500 ease-in-out ${
+              isCalendarOpen ? 'max-h-[2000px] opacity-100' : 'max-h-0 opacity-0'
+            }`}>
+              <WeeklyMedicationCalendar />
+            </div>
+
             {/* Instructions */}
-            <div className="bg-linear-to-r from-blue-50 to-purple-50 rounded-lg shadow-sm p-6">
+            {/* <div className="bg-linear-to-r from-blue-50 to-purple-50 rounded-lg shadow-sm p-6">
               <h2 className="text-lg font-semibold mb-4 text-gray-900">
                 💡 Try These Commands:
               </h2>
@@ -202,7 +215,7 @@ function CaretakerDashboardContent() {
                   </ul>
                 </div>
               </div>
-            </div>
+            </div> */}
           </div>
         </div>
       </SidebarInset>

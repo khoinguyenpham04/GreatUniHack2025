@@ -3,8 +3,30 @@
   "age": 76,
   "diagnosis": "Early-stage Alzheimer's",
   "med_schedule": [
-    "8am Donepezil",
-    "8pm Memantine"
+    {
+      "medication": "Donepezil",
+      "dosage": "10mg",
+      "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "times": ["08:00"]
+    },
+    {
+      "medication": "Memantine",
+      "dosage": "10mg",
+      "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "times": ["20:00"]
+    },
+    {
+      "medication": "Vitamin D",
+      "dosage": "2000 IU",
+      "days": ["Monday", "Wednesday", "Friday"],
+      "times": ["09:00"]
+    },
+    {
+      "medication": "Aspirin",
+      "dosage": "81mg",
+      "days": ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+      "times": ["09:00"]
+    }
   ],
   "last_med_time": "2025-11-08T18:04:01.040Z"
 }

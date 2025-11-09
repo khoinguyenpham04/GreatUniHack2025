@@ -48,14 +48,16 @@ export const PatientDB = {
 
     if (!patient) return null;
 
-    // Get medications
+    // Get medications with new structure
     const medications = db
       .prepare(
-        "SELECT medication_name, schedule_time, last_taken FROM medications WHERE patient_id = ?"
+        "SELECT medication_name, dosage, schedule_time, days_of_week, last_taken FROM medications WHERE patient_id = ?"
       )
       .all(patientId) as Array<{
       medication_name: string;
+      dosage: string;
       schedule_time: string;
+      days_of_week: string;
       last_taken: string | null;
     }>;
 
@@ -65,7 +67,7 @@ export const PatientDB = {
       age: (patient as any).age,
       diagnosis: (patient as any).diagnosis,
       medications: medications.map(
-        (m) => `${m.schedule_time} ${m.medication_name}`
+        (m) => `${m.medication_name} ${m.dosage} at ${m.schedule_time}`
       ),
       created_at: (patient as any).created_at,
     };
@@ -317,7 +319,32 @@ export const MedicationDB = {
       .all(patientId) as Array<{
       id: number;
       medication_name: string;
+      dosage: string;
       schedule_time: string;
+      days_of_week: string;
+      last_taken: string | null;
+    }>;
+  },
+
+  /**
+   * Get medications for a specific day and time
+   */
+  getForDayAndTime(patientId: number, dayOfWeek: string, time?: string) {
+    const db = getDatabase();
+    let query = "SELECT * FROM medications WHERE patient_id = ? AND days_of_week LIKE ?";
+    const params: any[] = [patientId, `%${dayOfWeek}%`];
+    
+    if (time) {
+      query += " AND schedule_time = ?";
+      params.push(time);
+    }
+    
+    return db.prepare(query).all(...params) as Array<{
+      id: number;
+      medication_name: string;
+      dosage: string;
+      schedule_time: string;
+      days_of_week: string;
       last_taken: string | null;
     }>;
   },

@@ -19,7 +19,9 @@ CREATE TABLE IF NOT EXISTS medications (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   patient_id INTEGER NOT NULL,
   medication_name TEXT NOT NULL,
+  dosage TEXT NOT NULL,
   schedule_time TEXT NOT NULL,
+  days_of_week TEXT NOT NULL,
   last_taken DATETIME,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (patient_id) REFERENCES patients(id) ON DELETE CASCADE
@@ -116,10 +118,12 @@ INSERT OR IGNORE INTO patients (id, name, age, diagnosis)
 VALUES (1, 'Mary Thompson', 76, 'Early-stage Alzheimer''s');
 
 -- Insert medications
-INSERT OR IGNORE INTO medications (id, patient_id, medication_name, schedule_time)
+INSERT OR IGNORE INTO medications (id, patient_id, medication_name, dosage, schedule_time, days_of_week)
 VALUES 
-  (1, 1, 'Donepezil', '8am'),
-  (2, 1, 'Memantine', '8pm');
+  (1, 1, 'Donepezil', '10mg', '08:00', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'),
+  (2, 1, 'Memantine', '10mg', '20:00', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday'),
+  (3, 1, 'Vitamin D', '2000 IU', '09:00', 'Monday,Wednesday,Friday'),
+  (4, 1, 'Aspirin', '81mg', '09:00', 'Monday,Tuesday,Wednesday,Thursday,Friday,Saturday,Sunday');
 
 -- Insert daily activities for patient
 INSERT OR IGNORE INTO daily_activities (id, patient_id, activity, icon)

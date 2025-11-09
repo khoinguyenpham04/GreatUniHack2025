@@ -19,7 +19,8 @@ export async function taskAgent(state: PatientState): Promise<PatientState> {
     
     // Create reminder tasks for each medication
     for (const med of medications) {
-      const taskDescription = `Take ${med.medication_name} at ${med.schedule_time}`;
+      const daysStr = med.days_of_week.split(',').join(', ');
+      const taskDescription = `Give ${med.medication_name} ${med.dosage} at ${med.schedule_time} (${daysStr})`;
       TaskDB.create(patientId, taskDescription);
     }
 

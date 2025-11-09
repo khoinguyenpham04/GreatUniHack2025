@@ -2,7 +2,7 @@
 
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { User, Pill, Clock } from "lucide-react";
+import { User, Pill, Clock, ChevronDown, ChevronUp } from "lucide-react";
 
 interface PatientProfileCardProps {
   name: string;
@@ -10,6 +10,8 @@ interface PatientProfileCardProps {
   diagnosis: string;
   medSchedule: string[];
   lastMedTime?: string;
+  onToggleCalendar?: () => void;
+  isCalendarOpen?: boolean;
 }
 
 export function PatientProfileCard({
@@ -18,6 +20,8 @@ export function PatientProfileCard({
   diagnosis,
   medSchedule,
   lastMedTime,
+  onToggleCalendar,
+  isCalendarOpen = false,
 }: PatientProfileCardProps) {
   return (
     <Card className="border-gray-200 bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -66,7 +70,7 @@ export function PatientProfileCard({
                   key={idx}
                   className="flex items-center gap-3 p-2.5 rounded-lg bg-gray-50 border border-gray-200"
                 >
-                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 font-semibold text-xs px-2.5 py-0.5 min-w-[48px] justify-center">
+                  <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white border-0 font-semibold text-xs px-2.5 py-0.5 min-w-12 justify-center">
                     {time}
                   </Badge>
                   <span className="text-sm text-gray-700 font-medium">{medName}</span>
@@ -75,6 +79,20 @@ export function PatientProfileCard({
             })}
           </div>
         </div>
+
+        {/* View Calendar Button */}
+        <button
+          onClick={onToggleCalendar}
+          className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all shadow-sm hover:shadow-md"
+        >
+          <Pill className="w-4 h-4" />
+          <span>View Weekly Medication Calendar</span>
+          {isCalendarOpen ? (
+            <ChevronUp className="w-4 h-4 ml-1" />
+          ) : (
+            <ChevronDown className="w-4 h-4 ml-1" />
+          )}
+        </button>
 
         {/* Last Medication Time */}
         {lastMedTime && (
