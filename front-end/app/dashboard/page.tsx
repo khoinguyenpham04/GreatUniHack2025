@@ -28,6 +28,14 @@ function PatientDashboardContent() {
   const [isLoadingMemory, setIsLoadingMemory] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [showInitialContent, setShowInitialContent] = useState(true);
+  const [isInitialContentFading, setIsInitialContentFading] = useState(false);
+  const [displayedAssistantMessage, setDisplayedAssistantMessage] = useState<string | null>(null);
+  const [isAssistantMessageVisible, setIsAssistantMessageVisible] = useState(false);
+  const [displayedShowsTodayCard, setDisplayedShowsTodayCard] = useState(false);
+  const hideMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Fetch daily activities, health tips, and memory photos
@@ -70,8 +78,30 @@ function PatientDashboardContent() {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      if (hideMessageTimeoutRef.current) {
+        clearTimeout(hideMessageTimeoutRef.current);
+        hideMessageTimeoutRef.current = null;
+      }
+      if (showMessageTimeoutRef.current) {
+        clearTimeout(showMessageTimeoutRef.current);
+        showMessageTimeoutRef.current = null;
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (hasSubmitted && showInitialContent) {
+      setIsInitialContentFading(true);
+      const timeout = setTimeout(() => {
+        setShowInitialContent(false);
+        setIsInitialContentFading(false);
+        setSelectedPhoto(null);
+        setPhotoMemoryContext("");
+      }, 400);
+
+      return () => clearTimeout(timeout);
+    }
+  }, [hasSubmitted, showInitialContent]);
 
   async function speakTextWithTTS(text: string) {
   try {
@@ -233,6 +263,7 @@ function PatientDashboardContent() {
     const userMessage = inputMessage.trim();
     setInputMessage(""); // Clear input immediately
     setIsSendingMessage(true);
+    setHasSubmitted(true);
     
     // Add user message to chat history
     setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -281,8 +312,118 @@ function PatientDashboardContent() {
     }
   };
 
+  const latestAssistantMessage = [...chatHistory]
+    .reverse()
+    .find((message) => message.role === 'assistant');
+
+  const latestAssistantContent = latestAssistantMessage?.content ?? null;
+  const latestUserMessage = [...chatHistory]
+    .reverse()
+    .find((message) => message.role === 'user');
+  const isTaskQuery = latestUserMessage
+    ? /\b(task|tasks|todo|remind|reminder|schedule|today|list|remove)\b/i.test(latestUserMessage.content)
+    : false;
+  const shouldShowTodayCard = isTaskQuery && !showInitialContent && dailyActivities.length > 0;
+
+  useEffect(() => {
+    if (!latestAssistantContent) {
+      if (hideMessageTimeoutRef.current) {
+        clearTimeout(hideMessageTimeoutRef.current);
+        hideMessageTimeoutRef.current = null;
+      }
+      if (showMessageTimeoutRef.current) {
+        clearTimeout(showMessageTimeoutRef.current);
+        showMessageTimeoutRef.current = null;
+      }
+      if (displayedAssistantMessage !== null) {
+        setDisplayedAssistantMessage(null);
+        setDisplayedShowsTodayCard(false);
+      }
+      if (isAssistantMessageVisible) {
+        setIsAssistantMessageVisible(false);
+      }
+      return;
+    }
+
+    if (latestAssistantContent === displayedAssistantMessage) {
+      if (!isAssistantMessageVisible) {
+        if (showMessageTimeoutRef.current) {
+          clearTimeout(showMessageTimeoutRef.current);
+          showMessageTimeoutRef.current = null;
+        }
+        showMessageTimeoutRef.current = setTimeout(() => {
+          setIsAssistantMessageVisible(true);
+          showMessageTimeoutRef.current = null;
+        }, 20);
+      }
+      return;
+    }
+
+    if (hideMessageTimeoutRef.current) {
+      clearTimeout(hideMessageTimeoutRef.current);
+      hideMessageTimeoutRef.current = null;
+    }
+    if (showMessageTimeoutRef.current) {
+      clearTimeout(showMessageTimeoutRef.current);
+      showMessageTimeoutRef.current = null;
+    }
+
+    if (displayedAssistantMessage) {
+      setIsAssistantMessageVisible(false);
+      hideMessageTimeoutRef.current = setTimeout(() => {
+        setDisplayedAssistantMessage(latestAssistantContent);
+        setDisplayedShowsTodayCard(shouldShowTodayCard);
+        hideMessageTimeoutRef.current = null;
+      }, 300);
+    } else {
+      setIsAssistantMessageVisible(false);
+      setDisplayedAssistantMessage(latestAssistantContent);
+      setDisplayedShowsTodayCard(shouldShowTodayCard);
+    }
+  }, [
+    latestAssistantContent,
+    displayedAssistantMessage,
+    isAssistantMessageVisible,
+    displayedShowsTodayCard,
+    shouldShowTodayCard,
+  ]);
+
+  const renderTodayCard = () => (
+    <div className="rounded-lg border border-gray-200 bg-[#fbfbfb] overflow-hidden text-left">
+      <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
+        <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
+        <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
+      </div>
+      <div className="divide-y divide-gray-100">
+        {dailyActivities.map((activity) => (
+          <div
+            key={activity.id}
+            className="group flex items-center gap-3 px-3 py-1.5 hover:bg-[#f0f0f0] transition-colors cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0"
+            />
+            <p className="m-0 flex-1 text-sm font-medium text-gray-900">
+              {activity.activity}
+            </p>
+            {activity.icon && (
+              <span className="shrink-0 text-sm opacity-60">{activity.icon}</span>
+            )}
+          </div>
+        ))}
+        {dailyActivities.length === 0 && (
+          <div className="px-3 py-1.5">
+            <p className="m-0 text-sm text-gray-500">No tasks for today</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   return (
     <SidebarProvider
+      defaultOpen={false}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -293,199 +434,170 @@ function PatientDashboardContent() {
       <AppSidebar variant="inset" />
       <SidebarInset>
         <SiteHeader />
-        <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
-          <div className="flex-1 overflow-y-auto">
+        <div className="flex-1 flex flex-col h-screen bg-white">
+          {showInitialContent && (
             <div
-              className={`flex min-h-full w-full flex-col px-6 ${
-                selectedPhoto ? "justify-start py-4" : "justify-center py-10"
+              className={`flex-1 overflow-y-auto transition-opacity duration-500 ${
+                isInitialContentFading ? "opacity-0" : "opacity-100"
               }`}
             >
-              <div className="mx-auto w-full max-w-4xl space-y-4">
-                {/* Greeting Header - Only show when no photo is selected */}
-                {!selectedPhoto && (
-                  <div className="py-2 text-center">
-                    <h1 className="text-4xl font-light text-gray-900">
-                      Hey, {patientData.name.split(' ')[0]}
-                    </h1>
-                  </div>
-                )}
+              <div
+                className={`flex min-h-full w-full flex-col px-6 ${
+                  selectedPhoto ? "justify-start py-4" : "justify-center py-10"
+                }`}
+              >
+                <div className="mx-auto w-full max-w-4xl space-y-4">
+                  {/* Greeting Header - Only show when no photo is selected */}
+                  {!selectedPhoto && (
+                    <div className="py-2 text-center">
+                      <h1 className="text-4xl font-light text-gray-900">
+                        Hey, {patientData.name.split(' ')[0]}
+                      </h1>
+                    </div>
+                  )}
 
-                {/* Photo Detail View */}
-                {selectedPhoto && (
-                  <div className="max-w-3xl mx-auto">
-                    {isLoadingMemory ? (
-                      /* Loading State */
-                      <div className="animate-in fade-in duration-200 flex flex-col items-center justify-center min-h-[400px] space-y-6">
-                        <div className="relative">
-                          <div className="animate-spin h-16 w-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
-                        </div>
-                        <div className="text-center space-y-2">
-                          <p className="text-lg font-medium text-gray-900">Remembering...</p>
-                          <p className="text-sm text-gray-500">Loading your memory</p>
-                        </div>
-                      </div>
-                    ) : (
-                      /* Memory Detail */
-                      <div className="animate-in fade-in duration-500 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
-                        {/* Photo */}
-                        <div className="relative aspect-video w-full bg-gray-100">
-                          <img
-                            src={selectedPhoto.src}
-                            alt={selectedPhoto.alt}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        
-                        {/* Memory Context */}
-                        <div className="p-8 space-y-6">
-                          <div className="space-y-4">
-                            <p className="text-lg text-gray-600 leading-relaxed text-center">
-                              {photoMemoryContext}
-                            </p>
+                  {/* Photo Detail View */}
+                  {selectedPhoto && (
+                    <div className="max-w-3xl mx-auto">
+                      {isLoadingMemory ? (
+                        /* Loading State */
+                        <div className="animate-in fade-in duration-200 flex flex-col items-center justify-center min-h-[400px] space-y-6">
+                          <div className="relative">
+                            <div className="animate-spin h-16 w-16 border-4 border-blue-200 border-t-blue-600 rounded-full" />
                           </div>
-                          
-                          <div className="flex justify-center">
-                            <button
-                              onClick={handleClosePhoto}
-                              className="px-8 py-3 bg-gray-100 text-gray-900 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                          <div className="text-center space-y-2">
+                            <p className="text-lg font-medium text-gray-900">Remembering...</p>
+                            <p className="text-sm text-gray-500">Loading your memory</p>
+                          </div>
+                        </div>
+                      ) : (
+                        /* Memory Detail */
+                        <div className="animate-in fade-in duration-500 bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden">
+                          {/* Photo */}
+                          <div className="relative aspect-video w-full bg-gray-100">
+                            <img
+                              src={selectedPhoto.src}
+                              alt={selectedPhoto.alt}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+
+                          {/* Memory Context */}
+                          <div className="p-8 space-y-6">
+                            <div className="space-y-4">
+                              <p className="text-lg text-gray-600 leading-relaxed text-center">
+                                {photoMemoryContext}
+                              </p>
+                            </div>
+
+                            <div className="flex justify-center">
+                              <button
+                                onClick={handleClosePhoto}
+                                className="px-8 py-3 bg-gray-100 text-gray-900 rounded-full font-medium hover:bg-gray-200 transition-colors"
+                              >
+                                Back to Activities
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Main Grid - Hidden when photo is selected */}
+                  {!selectedPhoto && (
+                    <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-2xl mx-auto">
+                      {/* Daily Tasks */}
+                      {renderTodayCard()}
+
+                      {/* Health Notes */}
+                      <div className="rounded-lg border border-gray-200 bg-[#fbfbfb]">
+                        <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
+                          <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
+                          <h2 className="m-0 text-sm font-medium text-gray-900">Health Notes</h2>
+                        </div>
+                        <div className="divide-y divide-gray-100">
+                          {healthTips.map((tip) => (
+                            <div
+                              key={tip.id}
+                              className="group flex items-center gap-3 px-3 py-1.5 hover:bg-[#f0f0f0] transition-colors"
                             >
-                              Back to Activities
-                            </button>
-                          </div>
+                              <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" />
+                              <p className="m-0 flex-1 text-sm text-gray-700">
+                                {tip.tip}
+                              </p>
+                              {tip.icon && (
+                                <span className="shrink-0 text-sm opacity-60">{tip.icon}</span>
+                              )}
+                            </div>
+                          ))}
+                          {healthTips.length === 0 && (
+                            <div className="px-3 py-1.5">
+                              <p className="m-0 text-sm text-gray-500">No health notes</p>
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Main Grid - Hidden when photo is selected */}
-                {!selectedPhoto && (
-                  <div className="animate-in fade-in duration-300 grid grid-cols-1 lg:grid-cols-2 gap-3 max-w-2xl mx-auto">
-                  {/* Daily Tasks */}
-                  <div className="rounded-lg border border-gray-200 bg-white">
-                    <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
-                      <div className="h-2 w-2 shrink-0 rounded-full bg-blue-500" />
-                      <h2 className="m-0 text-sm font-medium text-gray-900">Today</h2>
                     </div>
-                    <div className="divide-y divide-gray-100">
-                      {dailyActivities.map((activity) => (
-                        <div 
-                          key={activity.id} 
-                          className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors cursor-pointer"
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-blue-600 focus:ring-1 focus:ring-blue-500 focus:ring-offset-0"
+                  )}
+
+                  {/* Photo Carousel - Hidden when photo is selected */}
+                  {!selectedPhoto && memoryPhotos.length > 0 && (
+                    <div className="animate-in fade-in duration-300">
+                      <div className="mx-auto max-w-2xl">
+                        <div className="relative h-[200px] md:h-[220px] overflow-hidden rounded-2xl bg-white mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
+                          <InfiniteMovingCards
+                            items={memoryPhotos.map(photo => ({
+                              src: photo.photo_path,
+                              alt: photo.memory_description
+                            }))}
+                            direction="right"
+                            speed={carouselSpeed}
+                            pauseOnHover={true}
+                            disabled={isLoadingMemory}
+                            className="mask-none"
+                            onImageClick={handlePhotoClick}
                           />
-                          <p className="m-0 flex-1 text-sm font-medium text-gray-900">
-                            {activity.activity}
-                          </p>
-                          {activity.icon && (
-                            <span className="shrink-0 text-sm opacity-60">{activity.icon}</span>
-                          )}
                         </div>
-                      ))}
-                      {dailyActivities.length === 0 && (
-                        <div className="px-3 py-1.5">
-                          <p className="m-0 text-sm text-gray-500">No tasks for today</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Health Notes */}
-                  <div className="rounded-lg border border-gray-200 bg-white">
-                    <div className="flex items-center gap-2 border-b border-gray-200 px-3 py-1.5">
-                      <div className="h-2 w-2 shrink-0 rounded-full bg-green-500" />
-                      <h2 className="m-0 text-sm font-medium text-gray-900">Health Notes</h2>
-                    </div>
-                    <div className="divide-y divide-gray-100">
-                      {healthTips.map((tip) => (
-                        <div 
-                          key={tip.id} 
-                          className="group flex items-center gap-3 px-3 py-1.5 hover:bg-gray-50 transition-colors"
-                        >
-                          <div className="h-1.5 w-1.5 shrink-0 rounded-full bg-gray-300" />
-                          <p className="m-0 flex-1 text-sm text-gray-700">
-                            {tip.tip}
-                          </p>
-                          {tip.icon && (
-                            <span className="shrink-0 text-sm opacity-60">{tip.icon}</span>
-                          )}
-                        </div>
-                      ))}
-                      {healthTips.length === 0 && (
-                        <div className="px-3 py-1.5">
-                          <p className="m-0 text-sm text-gray-500">No health notes</p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-                )}
-
-                {/* Photo Carousel - Hidden when photo is selected */}
-                {!selectedPhoto && memoryPhotos.length > 0 && (
-                  <div className="animate-in fade-in duration-300">
-                    <div className="mx-auto max-w-2xl">
-                      <div className="relative h-[200px] md:h-[220px] overflow-hidden rounded-2xl bg-white mask-[linear-gradient(to_right,transparent,white_10%,white_90%,transparent)]">
-                        <InfiniteMovingCards
-                          items={memoryPhotos.map(photo => ({
-                            src: photo.photo_path,
-                            alt: photo.memory_description
-                          }))}
-                          direction="right"
-                          speed={carouselSpeed}
-                          pauseOnHover={true}
-                          disabled={isLoadingMemory}
-                          className="mask-none"
-                          onImageClick={handlePhotoClick}
-                        />
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
-          {/* Chat History & Input - Hidden when viewing photo */}
+          {/* Latest response & input */}
           {!selectedPhoto && (
-            <div className="border-t border-gray-200 bg-white">
-              {/* Chat History */}
-              {chatHistory.length > 0 && (
-                <div className="max-w-4xl mx-auto px-4 py-3 max-h-48 overflow-y-auto border-b border-gray-100">
-                  <div className="space-y-3">
-                    {chatHistory.map((message, idx) => (
-                      <div
-                        key={idx}
-                        className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-[80%] px-4 py-2 rounded-2xl ${
-                            message.role === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-900'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                        </div>
+            <div className="mt-auto bg-white sticky bottom-0">
+              {displayedAssistantMessage !== null && (
+                <div
+                  className={`max-w-3xl mx-auto px-6 py-6 transition-all duration-300 ease-in-out ${
+                    isAssistantMessageVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
+                  }`}
+                >
+                  <div className="space-y-4 text-center">
+                    {displayedShowsTodayCard && (
+                      <div className="max-w-xl mx-auto">
+                        {renderTodayCard()}
                       </div>
-                    ))}
+                    )}
+                    <p className="text-base text-gray-400 leading-relaxed">
+                      {displayedAssistantMessage}
+                    </p>
                   </div>
                 </div>
               )}
 
-              {/* Input */}
               <div className="p-4">
-                <div className="max-w-4xl mx-auto">
+                <div className="max-w-3xl mx-auto">
                   <form onSubmit={handleSubmit} className="relative">
-                    <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-3xl px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
+                    <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
                       <input
                         type="text"
                         value={inputMessage}
                         onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="Who is this person, she keeps saying we went on a trip last summer."
+                        placeholder="What's on your mind?"
                         disabled={isSendingMessage}
                         className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
                       />
@@ -500,7 +612,7 @@ function PatientDashboardContent() {
                       <button
                         type="submit"
                         disabled={!inputMessage.trim() || isSendingMessage}
-                        className="p-2 bg-blue-600 hover:bg-blue-700 rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                        className="p-2 bg-[#7777D7] hover:bg-[#6B6BD0] rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                         aria-label="Send message"
                       >
                         {isSendingMessage ? (

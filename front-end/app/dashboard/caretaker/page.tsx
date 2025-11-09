@@ -110,6 +110,7 @@ function CaretakerDashboardContent() {
   if (isLoading) {
     return (
       <SidebarProvider
+        defaultOpen={false}
         style={
           {
             "--sidebar-width": "calc(var(--spacing) * 72)",
@@ -135,6 +136,7 @@ function CaretakerDashboardContent() {
 
   return (
     <SidebarProvider
+      defaultOpen={false}
       style={
         {
           "--sidebar-width": "calc(var(--spacing) * 72)",

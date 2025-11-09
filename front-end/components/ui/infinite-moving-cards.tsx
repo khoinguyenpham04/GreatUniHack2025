@@ -96,6 +96,7 @@ export const InfiniteMovingCards = ({
                   src={item.src}
                   alt={item.alt}
                   fill
+                  sizes="(max-width: 639px) 260px, (max-width: 767px) 300px, (max-width: 1023px) 340px, 380px"
                   className="object-cover transition-all group-hover:brightness-75"
                 />
 
