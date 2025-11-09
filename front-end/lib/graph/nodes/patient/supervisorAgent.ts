@@ -15,7 +15,7 @@ export async function supervisorAgent(state: PatientState): Promise<PatientState
   const activitiesList = currentActivities.map((a) => `- ${a.activity}`).join("\n");
 
   const prompt = `
-Classify the patient's input as one of: "task" or "memory".
+Classify the patient's input as one of: "task", "health", or "memory".
 
 CURRENT ACTIVITIES:
 ${activitiesList}
@@ -26,6 +26,12 @@ Guidelines:
   * Removing activities (e.g., "remove the walk", "done with reading")
   * Completing activities (e.g., "I finished calling", "completed the walk")
   * Asking about their tasks (e.g., "what should I do today?")
+
+- "health": If the input mentions health symptoms or concerns:
+  * Physical symptoms (e.g., "my head hurts", "I feel dizzy", "my stomach aches")
+  * Pain or discomfort (e.g., "I'm in pain", "something hurts")
+  * Health changes (e.g., "I don't feel well", "I'm not feeling good")
+  * Medical concerns (e.g., "I fell down", "I can't breathe well")
   
 - "memory": For everything else:
   * General conversation
@@ -36,7 +42,7 @@ Guidelines:
 
 Input: "${state.input}"
 
-Respond with only one word: task or memory
+Respond with only one word: task, health, or memory
 `;
   
   const result = await model.invoke(prompt);
@@ -45,7 +51,7 @@ Respond with only one word: task or memory
     : String(result.content).trim().toLowerCase();
 
   // Ensure valid decision
-  const validDecision = ['task', 'memory'].includes(decision) ? decision : 'memory';
+  const validDecision = ['task', 'health', 'memory'].includes(decision) ? decision : 'memory';
 
   // Log interaction to database for analytics
   InteractionDB.log(patientId, state.input, validDecision);

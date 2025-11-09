@@ -11,7 +11,7 @@ import { useCopilotAction, useCopilotReadable } from "@copilotkit/react-core";
 import { TaskProvider, useTasks } from "@/lib/task-context";
 import { PatientStateProvider, usePatientState } from "@/lib/state-context";
 import patientData from "@/lib/patient.json";
-import { Send, Mic, X } from "lucide-react";
+import { Send, Mic, X, Phone } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 
@@ -31,6 +31,7 @@ function PatientDashboardContent() {
   const [displayedAssistantMessage, setDisplayedAssistantMessage] = useState<string | null>(null);
   const [isAssistantMessageVisible, setIsAssistantMessageVisible] = useState(false);
   const [displayedShowsTodayCard, setDisplayedShowsTodayCard] = useState(false);
+  const [isEmergency, setIsEmergency] = useState(false);
   const hideMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -202,9 +203,15 @@ function PatientDashboardContent() {
     setTimeout(() => {
       setDisplayedAssistantMessage(null);
       setDisplayedShowsTodayCard(false);
+      setIsEmergency(false); // Reset emergency state
       // Clear the chat history to prevent re-triggering
       setChatHistory([]);
     }, 300);
+  };
+
+  // Handle call 999
+  const handleCall999 = () => {
+    window.location.href = 'tel:999';
   };
 
   // Make patient data readable to CopilotKit
@@ -282,6 +289,11 @@ function PatientDashboardContent() {
       console.log('API response:', data);
       
       if (data.success && data.state) {
+        // Check for emergency flag
+        if (data.state.isEmergency) {
+          setIsEmergency(true);
+        }
+
         // Update chat history with AI response
         if (data.state.memoryLog && data.state.memoryLog.length > 0) {
           const latestResponse = data.state.memoryLog[data.state.memoryLog.length - 1];
@@ -611,6 +623,19 @@ function PatientDashboardContent() {
                           <p className="text-sm text-gray-600 leading-relaxed text-center">
                             {displayedAssistantMessage}
                           </p>
+                          
+                          {/* Emergency Call 911 Button */}
+                          {isEmergency && (
+                            <div className="flex justify-center pt-2">
+                              <button
+                                onClick={handleCall999}
+                                className="flex items-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-full shadow-lg transition-all duration-200 hover:shadow-xl animate-pulse"
+                              >
+                                <Phone className="w-5 h-5" />
+                                Call 999
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

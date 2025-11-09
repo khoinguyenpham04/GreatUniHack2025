@@ -49,7 +49,7 @@ export default function ContactsPage() {
               </p>
             </div>
 
-            {/* Emergency 911 Card */}
+            {/* Emergency 999 Card */}
             <div className="bg-white rounded-lg shadow-sm border border-red-100 overflow-hidden">
               <div className="bg-red-100 px-6 py-4">
                 <div className="flex items-center gap-3">
@@ -66,11 +66,11 @@ export default function ContactsPage() {
               </div>
               <div className="p-6">
                 <button
-                  onClick={() => handleCall("911")}
+                  onClick={() => handleCall("999")}
                   className="w-full bg-red-600 hover:bg-red-700 text-white font-semibold py-4 px-8 rounded-md transition-colors flex items-center justify-center gap-3 text-lg shadow-sm hover:shadow-md"
                 >
                   <Phone className="w-5 h-5" />
-                  Call 911
+                  Call 999
                 </button>
               </div>
             </div>
@@ -156,7 +156,7 @@ export default function ContactsPage() {
                   <h3 className="font-medium text-slate-800 mb-2">When to Call</h3>
                   <ul className="space-y-1 text-sm text-slate-700">
                     <li>
-                      • <strong>911:</strong> Life-threatening emergencies, severe
+                      • <strong>999:</strong> Life-threatening emergencies, severe
                       injuries, or immediate danger
                     </li>
                     <li>

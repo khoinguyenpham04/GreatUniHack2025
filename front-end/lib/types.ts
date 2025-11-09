@@ -24,6 +24,7 @@ export const PatientStateSchema = z.object({
   healthNotes: z.array(z.string()),
 
   routeDecision: z.string().optional(),
+  isEmergency: z.boolean().optional(), // Flag for high-priority health concerns
 });
 
 export type PatientState = z.infer<typeof PatientStateSchema>;
