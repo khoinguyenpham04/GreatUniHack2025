@@ -34,6 +34,12 @@ import { InfiniteMovingCards } from "@/components/ui/infinite-moving-cards";
 import { DotSpinner } from 'ldrs/react';
 import 'ldrs/react/DotSpinner.css';
 
+const PROMPT_SUGGESTIONS = [
+  "Tell me about my memories.",
+  "What tasks do I have today?",
+  "I am concerned with my health.",
+];
+
 function PatientDashboardContent() {
   const [inputMessage, setInputMessage] = useState("");
   const { tasks, addTask } = useTasks();
@@ -58,6 +64,7 @@ function PatientDashboardContent() {
   const hideMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showMessageTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  const inputRef = useRef<HTMLInputElement | null>(null);
 
   // Fetch daily activities, health tips, and memory photos
   useEffect(() => {
@@ -394,17 +401,16 @@ function PatientDashboardContent() {
     },
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!inputMessage.trim() || isSendingMessage) return;
+  const processMessage = async (message: string) => {
+    const trimmedMessage = message.trim();
+    if (!trimmedMessage || isSendingMessage) return;
 
-    const userMessage = inputMessage.trim();
-    setInputMessage(""); // Clear input immediately
+    setInputMessage("");
     setIsSendingMessage(true);
-    
+
     // Add user message to chat history
-    setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
-    console.log("Sending message:", userMessage);
+    setChatHistory(prev => [...prev, { role: 'user', content: trimmedMessage }]);
+    console.log("Sending message:", trimmedMessage);
 
     try {
       // Call patient graph API
@@ -412,7 +418,7 @@ function PatientDashboardContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          input: userMessage,
+          input: trimmedMessage,
           workflow: 'patient'
         }),
       });
@@ -455,6 +461,11 @@ function PatientDashboardContent() {
     } finally {
       setIsSendingMessage(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await processMessage(inputMessage);
   };
 
   const latestAssistantMessage = [...chatHistory]
@@ -534,6 +545,13 @@ function PatientDashboardContent() {
   ]);
 
   // Handle activity checkbox click
+  const handleSuggestionClick = (suggestion: string) => {
+    if (isSendingMessage) return;
+    setInputMessage(suggestion);
+    inputRef.current?.focus();
+    void processMessage(suggestion);
+  };
+
   const handleActivityCheckbox = async (activityId: number) => {
     try {
       const response = await fetch('/api/db/daily-activities', {
@@ -640,7 +658,7 @@ function PatientDashboardContent() {
           }`}>
             <div className={`flex min-h-full w-full flex-col px-6 ${
               selectedPhoto ? "justify-start py-4" : "justify-center py-10"
-            }`}>
+            } ${!selectedPhoto ? "pb-64" : ""}`}>
               <div className="mx-auto w-full max-w-4xl space-y-4">
                   {/* Greeting Header - Only show when no photo is selected */}
                   {!selectedPhoto && (
@@ -764,11 +782,11 @@ function PatientDashboardContent() {
 
           {/* Latest response & input */}
           {!selectedPhoto && (
-            <div className="mt-auto bg-white sticky bottom-0">
-              <div className="p-4">
-                <div className="max-w-3xl mx-auto">
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 z-40">
+              <div className="px-4 pb-4 sm:px-6">
+                <div className="max-w-3xl mx-auto pointer-events-auto">
                   {/* Outer pill container */}
-                  <div className="bg-gray-50 rounded-4xl border border-gray-200 shadow-lg overflow-hidden">
+                  <div className="bg-gray-50 rounded-4xl border border-gray-200 overflow-hidden">
                     {/* Assistant response bubble - appears at top of pill */}
                     {displayedAssistantMessage !== null && (
                       <div
@@ -819,10 +837,11 @@ function PatientDashboardContent() {
                     )}
 
                     {/* Inner pill - chat input */}
-                    <div className="p-3">
+                    <div className="p-3 space-y-3">
                       <form onSubmit={handleSubmit} className="relative">
-                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-3 shadow-sm border border-gray-300">
+                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-3 border border-gray-300">
                           <input
+                            ref={inputRef}
                             type="text"
                             value={inputMessage}
                             onChange={(e) => setInputMessage(e.target.value)}
@@ -865,6 +884,21 @@ function PatientDashboardContent() {
                           </button>
                         </div>
                       </form>
+                      {PROMPT_SUGGESTIONS.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {PROMPT_SUGGESTIONS.map((suggestion) => (
+                            <button
+                              key={suggestion}
+                              type="button"
+                              onClick={() => handleSuggestionClick(suggestion)}
+                              className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#7777D7]/40"
+                              disabled={isSendingMessage}
+                            >
+                              {suggestion}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
