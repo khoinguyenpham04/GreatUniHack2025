@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import Image from 'next/image'
 import { BookOpen } from 'lucide-react'
-import { cn } from '@/lib/utils'
+import { cn } from '@/lib/utils' // commit
 
 export default function HeroSection() {
     return (
