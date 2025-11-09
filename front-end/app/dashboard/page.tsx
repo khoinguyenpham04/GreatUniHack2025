@@ -451,8 +451,10 @@ function PatientDashboardContent() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex-1 flex flex-col h-screen bg-white">
-          {/* Main Content - Always Visible */}
-          <div className="flex-1 overflow-y-auto">
+          {/* Main Content - Always Visible - Blur when response is shown */}
+          <div className={`flex-1 overflow-y-auto transition-all duration-300 ${
+            displayedAssistantMessage !== null && isAssistantMessageVisible ? 'blur-sm' : 'blur-0'
+          }`}>
             <div className={`flex min-h-full w-full flex-col px-6 ${
               selectedPhoto ? "justify-start py-4" : "justify-center py-10"
             }`}>
