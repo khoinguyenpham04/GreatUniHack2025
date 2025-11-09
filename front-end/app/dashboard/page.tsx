@@ -271,12 +271,14 @@ function PatientDashboardContent() {
         <div className="flex-1 flex flex-col h-screen overflow-hidden bg-white">
           <div className="flex-1 overflow-y-auto">
             <div className="max-w-4xl mx-auto px-6 py-4 space-y-4">
-              {/* Greeting Header */}
-              <div className="py-2 text-center">
-                <h1 className="text-2xl font-light text-gray-900">
-                  Hey, {patientData.name.split(' ')[0]}
-                </h1>
-              </div>
+              {/* Greeting Header - Only show when no photo is selected */}
+              {!selectedPhoto && (
+                <div className="py-2 text-center">
+                  <h1 className="text-2xl font-light text-gray-900">
+                    Hey, {patientData.name.split(' ')[0]}
+                  </h1>
+                </div>
+              )}
 
               {/* Photo Detail View */}
               {selectedPhoto && (
