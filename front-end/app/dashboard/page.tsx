@@ -28,9 +28,6 @@ function PatientDashboardContent() {
   const [isLoadingMemory, setIsLoadingMemory] = useState(false);
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [chatHistory, setChatHistory] = useState<Array<{ role: 'user' | 'assistant'; content: string }>>([]);
-  const [hasSubmitted, setHasSubmitted] = useState(false);
-  const [showInitialContent, setShowInitialContent] = useState(true);
-  const [isInitialContentFading, setIsInitialContentFading] = useState(false);
   const [displayedAssistantMessage, setDisplayedAssistantMessage] = useState<string | null>(null);
   const [isAssistantMessageVisible, setIsAssistantMessageVisible] = useState(false);
   const [displayedShowsTodayCard, setDisplayedShowsTodayCard] = useState(false);
@@ -88,20 +85,6 @@ function PatientDashboardContent() {
       }
     };
   }, []);
-
-  useEffect(() => {
-    if (hasSubmitted && showInitialContent) {
-      setIsInitialContentFading(true);
-      const timeout = setTimeout(() => {
-        setShowInitialContent(false);
-        setIsInitialContentFading(false);
-        setSelectedPhoto(null);
-        setPhotoMemoryContext("");
-      }, 400);
-
-      return () => clearTimeout(timeout);
-    }
-  }, [hasSubmitted, showInitialContent]);
 
   async function speakTextWithTTS(text: string) {
   try {
@@ -263,7 +246,6 @@ function PatientDashboardContent() {
     const userMessage = inputMessage.trim();
     setInputMessage(""); // Clear input immediately
     setIsSendingMessage(true);
-    setHasSubmitted(true);
     
     // Add user message to chat history
     setChatHistory(prev => [...prev, { role: 'user', content: userMessage }]);
@@ -326,7 +308,7 @@ function PatientDashboardContent() {
   const isTaskQuery = latestUserMessage
     ? /\b(task|tasks|todo|remind|reminder|schedule|today|list|remove)\b/i.test(latestUserMessage.content)
     : false;
-  const shouldShowTodayCard = isTaskQuery && !showInitialContent && dailyActivities.length > 0;
+  const shouldShowTodayCard = isTaskQuery && dailyActivities.length > 0;
 
   useEffect(() => {
     if (!latestAssistantContent) {
@@ -438,18 +420,12 @@ function PatientDashboardContent() {
       <SidebarInset>
         <SiteHeader />
         <div className="flex-1 flex flex-col h-screen bg-white">
-          {showInitialContent && (
-            <div
-              className={`flex-1 overflow-y-auto transition-opacity duration-500 ${
-                isInitialContentFading ? "opacity-0" : "opacity-100"
-              }`}
-            >
-              <div
-                className={`flex min-h-full w-full flex-col px-6 ${
-                  selectedPhoto ? "justify-start py-4" : "justify-center py-10"
-                }`}
-              >
-                <div className="mx-auto w-full max-w-4xl space-y-4">
+          {/* Main Content - Always Visible */}
+          <div className="flex-1 overflow-y-auto">
+            <div className={`flex min-h-full w-full flex-col px-6 ${
+              selectedPhoto ? "justify-start py-4" : "justify-center py-10"
+            }`}>
+              <div className="mx-auto w-full max-w-4xl space-y-4">
                   {/* Greeting Header - Only show when no photo is selected */}
                   {!selectedPhoto && (
                     <div className="py-2 text-center">
@@ -568,69 +544,82 @@ function PatientDashboardContent() {
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Latest response & input */}
           {!selectedPhoto && (
             <div className="mt-auto bg-white sticky bottom-0">
-              {displayedAssistantMessage !== null && (
-                <div
-                  className={`max-w-3xl mx-auto px-6 py-6 transition-all duration-300 ease-in-out ${
-                    isAssistantMessageVisible ? "opacity-100 translate-y-0" : "opacity-0 translate-y-2"
-                  }`}
-                >
-                  <div className="space-y-4 text-center">
-                    {displayedShowsTodayCard && (
-                      <div className="max-w-xl mx-auto">
-                        {renderTodayCard()}
-                      </div>
-                    )}
-                    <p className="text-base text-gray-400 leading-relaxed">
-                      {displayedAssistantMessage}
-                    </p>
-                  </div>
-                </div>
-              )}
-
               <div className="p-4">
                 <div className="max-w-3xl mx-auto">
-                  <form onSubmit={handleSubmit} className="relative">
-                    <div className="flex items-center gap-2 bg-white border border-gray-300 rounded-full px-4 py-3 shadow-sm hover:shadow-md transition-shadow">
-                      <input
-                        type="text"
-                        value={inputMessage}
-                        onChange={(e) => setInputMessage(e.target.value)}
-                        placeholder="What's on your mind?"
-                        disabled={isSendingMessage}
-                        className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
-                      />
-                      <button
-                        type="button"
-                        className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
-                        aria-label="Voice input"
-                        disabled={isSendingMessage}
+                  {/* Outer pill container */}
+                  <div className="bg-gray-50 rounded-4xl border border-gray-200 shadow-lg overflow-hidden">
+                    {/* Assistant response bubble - appears at top of pill */}
+                    {displayedAssistantMessage !== null && (
+                      <div
+                        className={`px-6 py-4 transition-all duration-300 ease-in-out ${
+                          isAssistantMessageVisible ? "opacity-100 max-h-96" : "opacity-0 max-h-0"
+                        }`}
                       >
-                        <Mic className="w-5 h-5 text-gray-500" />
-                      </button>
-                      <button
-                        type="submit"
-                        disabled={!inputMessage.trim() || isSendingMessage}
-                        className="p-2 bg-[#7777D7] hover:bg-[#6B6BD0] rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                        aria-label="Send message"
-                      >
-                        {isSendingMessage ? (
-                          <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
-                        ) : (
-                          <Send className="w-5 h-5 text-white" />
-                        )}
-                      </button>
+                        <div className="space-y-3">
+                          {displayedShowsTodayCard && (
+                            <div className="max-w-xl mx-auto">
+                              {renderTodayCard()}
+                            </div>
+                          )}
+                          <p className="text-sm text-gray-600 leading-relaxed text-center">
+                            {displayedAssistantMessage}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
+                    {/* Divider line when message is shown */}
+                    {displayedAssistantMessage !== null && isAssistantMessageVisible && (
+                      <div className="px-6">
+                        <div className="border-t border-gray-200" />
+                      </div>
+                    )}
+
+                    {/* Inner pill - chat input */}
+                    <div className="p-3">
+                      <form onSubmit={handleSubmit} className="relative">
+                        <div className="flex items-center gap-2 bg-white rounded-full px-4 py-3 shadow-sm border border-gray-300">
+                          <input
+                            type="text"
+                            value={inputMessage}
+                            onChange={(e) => setInputMessage(e.target.value)}
+                            placeholder="What's on your mind?"
+                            disabled={isSendingMessage}
+                            className="flex-1 bg-transparent outline-none text-gray-900 placeholder:text-gray-400 disabled:opacity-50"
+                          />
+                          <button
+                            type="button"
+                            className="p-2 hover:bg-gray-100 rounded-full transition-colors disabled:opacity-50"
+                            aria-label="Voice input"
+                            disabled={isSendingMessage}
+                          >
+                            <Mic className="w-5 h-5 text-gray-500" />
+                          </button>
+                          <button
+                            type="submit"
+                            disabled={!inputMessage.trim() || isSendingMessage}
+                            className="p-2 bg-[#7777D7] hover:bg-[#6B6BD0] rounded-full transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                            aria-label="Send message"
+                          >
+                            {isSendingMessage ? (
+                              <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                            ) : (
+                              <Send className="w-5 h-5 text-white" />
+                            )}
+                          </button>
+                        </div>
+                      </form>
                     </div>
-                  </form>
+                  </div>
                 </div>
               </div>
             </div>
           )}
-        </div>
       </SidebarInset>
     </SidebarProvider>
   );
